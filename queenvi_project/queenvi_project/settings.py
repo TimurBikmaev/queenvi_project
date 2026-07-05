@@ -11,7 +11,10 @@ ALLOWED_HOSTS = []
 
 
 INSTALLED_APPS = [
+    'moderation.apps.ModerationConfig',
+    'post.apps.PostConfig',
     'user.apps.UserConfig',
+    'youtube_suggestion.apps.Youtube_suggestionConfig',
     'django.contrib.admin',
     'django.contrib.auth',
     'django.contrib.contenttypes',
