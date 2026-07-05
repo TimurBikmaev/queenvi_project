@@ -1,0 +1,6 @@
+class UserConstants:
+    NO_WARNINGS = 0
+    ONE_WARNING = 1
+    WARNINGS_TO_AUTOBAN = 2
+    ROLE_MAX_LENGTH = 20
+    TWITCH_ID_MAX_LENGTH = 35
