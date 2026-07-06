@@ -162,7 +162,9 @@ __marimo__/
 # Streamlit
 .streamlit/secrets.toml
 
+# Migrations
+migrations/
+
 # Project requirements
 project_guide/
-
-fsdfsdf
+notes.txt
