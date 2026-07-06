@@ -1,18 +1,13 @@
 from django.db.models import TextChoices
 
 
-class BaseStatus(TextChoices):
-    VISIBLE = 'visible', 'Виден всем'
-    HIDDEN = 'hidden', 'Спрятан от всех и ждет модерации'
-    BANNED = 'banned', 'Заблокирован модератором'
+class PostConstants:
+    NAME_MAX_LENGTH = 100
+    DESCRIPTION_MAX_LENGTH = 1000
 
 
-class PostStatus(BaseStatus):
-    pass
-
-
-class CommentStatus(BaseStatus):
-    pass
+class CommentConstansts:
+    TEXT_MAX_LENGTH = 700
 
 
 class ReportStatus(TextChoices):
@@ -21,17 +16,17 @@ class ReportStatus(TextChoices):
     REJECTED = 'rejected', 'Отменена'
 
 
-class CommentConstansts:
-    TEXT_MAX_LENGTH = 700
-
-
-class PostConstants:
-    NAME_MAX_LENGTH = 100
-    DESCRIPTION_MAX_LENGTH = 1000
-    STATUS_MAX_LENGTH = 20
-
-
 class ReportConstants:
     REASON_MAX_LENGTH = 700
     REASON_MIN_LENGTH = 100
     STATUS_MAX_LENGTH = 20
+
+
+class MediaType(TextChoices):
+    PHOTO = 'photo', 'Фото'
+    VIDEO = 'video', 'Видео'
+    AUDIO = 'audio', 'Аудио'
+
+
+class MediaConstants:
+    TYPE_MAX_LENGTH = 20

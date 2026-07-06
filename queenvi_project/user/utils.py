@@ -2,8 +2,7 @@ import os
 
 from django.utils.text import slugify
 
-
-EXTENSION_OF_FILE = -1
+from core.constants import EXTENSION_OF_FILE
 
 
 def avatar_upload_to(instance, filename):

@@ -2,7 +2,7 @@ from django.contrib.auth.models import AbstractUser
 from django.core.validators import MaxValueValidator, MinValueValidator
 from django.db import models
 
-from core.mixins import TimeStampedMixin
+from core.mixins import CreatedAtMixin, UpdatedMixin
 from user.constants import UserConstants
 from user.utils import avatar_upload_to
 
@@ -13,7 +13,7 @@ class UserRole(models.TextChoices):
     STREAMER = 'streamer', 'Стример'
 
 
-class User(TimeStampedMixin, AbstractUser):
+class User(CreatedAtMixin, UpdatedMixin, AbstractUser):
     twitch_id = models.CharField(
         'ID twitch-аккаунта',
         max_length=UserConstants.TWITCH_ID_MAX_LENGTH,
@@ -87,4 +87,4 @@ class User(TimeStampedMixin, AbstractUser):
         return not self.is_active
 
     def __str__(self):
-        return (f'User id: {self.id} | role: {self.role}')
+        return f'User id: {self.id} | role: {self.role}'
