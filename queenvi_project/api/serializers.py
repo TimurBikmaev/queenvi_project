@@ -1,54 +1,74 @@
 from django.contrib.auth import get_user_model
 from rest_framework import serializers
 
+from core.constants import BaseStatus
 from post.models import Post
 
 
 User = get_user_model()
 
 
-class UserSerializer(serializers.ModelSerializer):
+class BaseSerializer(serializers.ModelSerializer):
+    def to_representation(self, obj):
+        """Исключение null-полей из ответа сериализатора."""
+        data = super().to_representation(obj)
+        return {
+            attr: value for attr, value in data.items()
+            if value is not None
+        }
+
+
+class UserSerializer(BaseSerializer):
 
     class Meta:
         model = User
-        fields = ['id', 'twitch_id', 'username', 'avatar', 'role', 'warnings']
-        read_only_fields = ['twitch_id', 'username', 'avatar']
+        fields = [
+            'id', 'username', 'avatar', 'is_active', 'role',
+            'warnings', 'created_at', 'updated_at'
+        ]
+        read_only_fields = ['id', 'username',
+                            'avatar', 'created_at', 'updated_at']
 
 
-class ShortUserSerializer(serializers.ModelSerializer):
+class ShortUserSerializer(BaseSerializer):
     class Meta:
         model = User
-        fields = ['id', 'username', 'avatar']
-        read_only_fields = ['username']
+        fields = ['id', 'username', 'avatar', 'created_at']
+        read_only_fields = ['id', 'username', 'created_at']
 
 
-class CreateUserSerializer(serializers.ModelSerializer):
+class ProfilePostSerializer(BaseSerializer):
+    class Meta:
+        model = Post
+        fields = ['id', 'name', 'is_for_stream', 'media', 'created_at']
+
+
+class ProfileSerializer(BaseSerializer):
+    posts_count = serializers.IntegerField(read_only=True)
+    posts = ProfilePostSerializer(
+        many=True, read_only=True, source='visible_posts'
+    )
 
     class Meta:
         model = User
-        fields = ['twitch_id', 'avatar']
-
-    def create(self, validated_data):
-        user = User(**validated_data)
-        user.set_unusable_password()
-        user.username = validated_data['twitch_id']
-        user.save()
-        return user
+        fields = ['username', 'avatar', 'created_at', 'posts_count', 'posts']
 
 
-class UpdateUserSerializer(serializers.ModelSerializer):
+class UpdateUserSerializer(BaseSerializer):
 
     class Meta:
         model = User
         fields = ['avatar']
 
 
-class PostSerializer(serializers.ModelSerializer):
-    user = UserShortSerializer(read_only=True)
+# class PostSerializer(BaseSerializer):
+#     user = ShortUserSerializer(read_only=True,
+#                                #    is_null=False
+#                                )
 
-    class Meta:
-        model = Post
-        fields = [
-            'name', 'description', 'is_for_stream',
-            'user', 'created_at', 'updated_at'
-        ]
+#     class Meta:
+#         model = Post
+#         fields = [
+#             'name', 'is_for_stream', 'description',
+#             'user', 'media', 'created_at', 'updated_at'
+#         ]

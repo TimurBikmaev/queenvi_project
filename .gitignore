@@ -168,3 +168,4 @@ migrations/
 # Project requirements
 project_guide/
 notes.txt
+exp.py

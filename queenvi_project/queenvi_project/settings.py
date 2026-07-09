@@ -1,14 +1,19 @@
+import os
 from pathlib import Path
+
+from dotenv import load_dotenv
 
 
 BASE_DIR = Path(__file__).resolve().parent.parent
+load_dotenv(BASE_DIR / '.env')
 
-SECRET_KEY = 'django-insecure-0o_+xlksqhda%x25uj746z)@j7w@*+-b&_9qwjkwdck%*ifd6n'
+TWITCH_CLIENT_ID = os.environ['TWITCH_CLIENT_ID']
+TWITCH_CLIENT_SECRET = os.environ['TWITCH_CLIENT_SECRET']
+TWITCH_REDIRECT_URI = os.environ['TWITCH_REDIRECT_URI']
 
-DEBUG = True
-
-ALLOWED_HOSTS = []
-
+SECRET_KEY = os.environ['DJANGO_SECRET_KEY']
+DEBUG = os.getenv('DEBUG', 'False').lower() in ('true', '1', 't')
+ALLOWED_HOSTS = os.getenv('ALLOWED_HOSTS', '').split(',')
 
 INSTALLED_APPS = [
     'api.apps.ApiConfig',
@@ -22,6 +27,7 @@ INSTALLED_APPS = [
     'django.contrib.sessions',
     'django.contrib.messages',
     'django.contrib.staticfiles',
+    'rest_framework',
 ]
 
 MIDDLEWARE = [
@@ -89,4 +95,4 @@ STATIC_URL = 'static/'
 
 DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
 
-AUTH_USER_MODEL = "user.User"
+AUTH_USER_MODEL = 'user.User'
