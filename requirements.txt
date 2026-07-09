@@ -3,4 +3,6 @@ djangorestframework==3.15
 ipython
 pillow
 pytest
+python-dotenv
+requests
 ruff
