@@ -1,3 +1,7 @@
+class SerializersConstants:
+    POST_PROFILE_DESCRIPTION_MAX_LENGTH = 10
+
+
 class TwitchLoginConstants:
     IDX_USER_DATA = 0
     LENGTH_STATE = 32

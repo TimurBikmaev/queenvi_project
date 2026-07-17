@@ -35,14 +35,26 @@ class UserViewSet(viewsets.ModelViewSet):
 
     @action(detail=False, methods=['get'])
     def me(self, request):
-        user = User.objects.annotate(posts_count=Count(
-            'posts',
-            filter=Q(posts__status=BaseStatus.VISIBLE),
-        )).prefetch_related(Prefetch(
-            'posts',
-            queryset=Post.objects.filter(status=BaseStatus.VISIBLE),
-            to_attr='visible_posts',
-        )).get(pk=request.user.pk)
+        user = User.objects.annotate(
+            posts_count=Count(
+                'posts',
+                filter=Q(posts__status=BaseStatus.VISIBLE),
+            )
+        ).prefetch_related(
+            Prefetch(
+                'posts',
+                queryset=Post.objects.filter(
+                    status=BaseStatus.VISIBLE
+                ).annotate(
+                    likes_count=Count('likes'),
+                    comments_count=Count(
+                        'comments',
+                        filter=Q(comments__status=BaseStatus.VISIBLE)
+                    )
+                ),
+                to_attr='visible_posts',
+            )
+        ).get(pk=request.user.pk)
         serializer = self.get_serializer(user)
         return Response(serializer.data)
 
