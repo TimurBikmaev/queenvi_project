@@ -1,32 +1,28 @@
-from http import HTTPStatus
-import secrets
-from urllib.parse import urlencode
-
-
-from django.conf import settings
 from django.contrib.auth import get_user_model, login
 from django.db.models import Count, Prefetch, Q
 from django.shortcuts import redirect
-import requests
-from rest_framework import viewsets
+from rest_framework import mixins, viewsets
 from rest_framework.decorators import action
 from rest_framework.response import Response
 
 from api import serializers
-from api.constants import TwitchLoginConstants
-from api.utils import date_to_json
 from core.constants import BaseStatus
+from core.services import TwitchLoginService
 from post.models import Post
 
 
 User = get_user_model()
 
 
-class UserViewSet(viewsets.ModelViewSet):
+class UserViewSet(
+    mixins.CreateModelMixin,
+    mixins.RetrieveModelMixin,
+    mixins.UpdateModelMixin,
+    viewsets.GenericViewSet,
+):
     queryset = User.objects.all()
     serializer_class = serializers.UserSerializer
-    # permission_classes = (OwnerOrReadOnly,)
-    # pagination_class = LimitOffsetPagination
+    http_method_names = ["get", "patch"]
 
     def get_serializer_class(self):
         if self.action == "me":
@@ -60,66 +56,12 @@ class UserViewSet(viewsets.ModelViewSet):
 
     @action(detail=False, methods=['get'])
     def twitch_login(self, request):
-        state = secrets.token_urlsafe(TwitchLoginConstants.LENGTH_STATE)
-        request.session['oauth_state'] = state
-        params = {
-            'client_id': settings.TWITCH_CLIENT_ID,
-            'redirect_uri': settings.TWITCH_REDIRECT_URI,
-            'response_type': TwitchLoginConstants.TYPE_RESPONSE,
-            'scope': TwitchLoginConstants.SCOPE,
-            'state': state
-        }
-        return redirect(TwitchLoginConstants.URL_AUTH + urlencode(params))
+        return redirect(TwitchLoginService.get_login_url(request))
 
     @action(detail=False, methods=['get'])
     def twitch_callback(self, request):
-        received_state = request.GET.get('state')
-        saved_state = request.session.get('oauth_state')
-        if received_state != saved_state:
-            return Response(
-                {'error': 'Регистрация не пройдена!'},
-                status=HTTPStatus.BAD_REQUEST
-            )
-
-        auth_code = request.GET.get('code')
-        response = requests.post(
-            TwitchLoginConstants.URL_TOKEN,
-            data={
-                'client_id': settings.TWITCH_CLIENT_ID,
-                'client_secret': settings.TWITCH_CLIENT_SECRET,
-                'code': auth_code,
-                'grant_type': TwitchLoginConstants.TYPE_GRAND,
-                'redirect_uri': settings.TWITCH_REDIRECT_URI,
-            },
-            timeout=TwitchLoginConstants.TIME_FOR_ANSWER,
-        )
-        response.raise_for_status()
-
-        data = response.json()
-        access_token = f'Bearer {data.get("access_token")}'
-        response = requests.get(
-            TwitchLoginConstants.URL_USER_INFO,
-            headers={
-                'Authorization': access_token,
-                'Client-Id': settings.TWITCH_CLIENT_ID,
-            },
-            timeout=TwitchLoginConstants.TIME_FOR_ANSWER,
-        )
-        response.raise_for_status()
-        data = response.json()['data'][TwitchLoginConstants.IDX_USER_DATA]
-
-        user, created = User.objects.get_or_create(
-            twitch_id=data["id"],
-            defaults={
-                "username": data["display_name"],
-                "avatar": data["profile_image_url"],
-            },
-        )
-        if not created:
-            user.username = data["display_name"]
-            user.avatar = data["profile_image_url"]
-            user.save(update_fields=["username", "avatar"])
-
+        user = TwitchLoginService.authenticate(request)
+        login(request, user)
         return redirect('users-me')
 
 
