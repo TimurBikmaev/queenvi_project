@@ -13,14 +13,6 @@ class TwitchLoginService:
     """Аутентификация юзера через твич."""
 
     @staticmethod
-    def authenticate(request):
-        "Оркестрация аутентификации."
-        TwitchLoginService.check_state(request)
-        access_token = TwitchLoginService.get_access_token(request)
-        user_data = TwitchLoginService.get_user_data(access_token)
-        return TwitchLoginService.create_user_from_twitch_data(user_data)
-
-    @staticmethod
     def get_login_url(request):
         """Формирование урла для аутентификации."""
         state = secrets.token_urlsafe(TwitchLoginConstants.LENGTH_STATE)
@@ -29,10 +21,18 @@ class TwitchLoginService:
             "client_id": settings.TWITCH_CLIENT_ID,
             "redirect_uri": settings.TWITCH_REDIRECT_URI,
             "response_type": TwitchLoginConstants.TYPE_RESPONSE,
-            "scope": TwitchLoginConstants.SCOPE,
+            # "scope": TwitchLoginConstants.SCOPE,
             "state": state,
         }
         return TwitchLoginConstants.URL_AUTH + urlencode(params)
+
+    @staticmethod
+    def authenticate(request):
+        "Оркестрация аутентификации."
+        TwitchLoginService.check_state(request)
+        access_token = TwitchLoginService.get_access_token(request)
+        user_data = TwitchLoginService.get_user_data(access_token)
+        return TwitchLoginService.create_user_from_twitch_data(user_data)
 
     @staticmethod
     def check_state(request):
@@ -82,12 +82,12 @@ class TwitchLoginService:
             twitch_id=data["id"],
             defaults={
                 "username": data["display_name"],
-                "avatar": data["profile_image_url"],
+                "avatar_url": data["profile_image_url"],
             },
         )
         if not created:
             user.username = data["display_name"]
-            user.avatar = data["profile_image_url"]
-            user.save(update_fields=["username", "avatar"])
+            user.avatar_url = data["profile_image_url"]
+            user.save(update_fields=["username", "avatar_url"])
 
         return user

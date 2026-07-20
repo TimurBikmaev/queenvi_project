@@ -2,7 +2,6 @@ from django.db.models import TextChoices
 
 
 EXTENSION_OF_FILE = -1
-PUBLIC_ID_MAX_LENGTH = 12
 STATUS_MAX_LENGTH = 20
 
 
@@ -10,6 +9,11 @@ class BaseStatus(TextChoices):
     VISIBLE = 'visible', 'Виден всем'
     HIDDEN = 'hidden', 'Спрятан от всех и ждет модерации'
     BANNED = 'banned', 'Заблокирован модератором'
+
+
+class PublicIdConstants:
+    MAX_LENGTH = 8
+    URL_REGEX = rf'[a-zA-Z0-9]{{{MAX_LENGTH}}}'
 
 
 class TwitchLoginConstants:

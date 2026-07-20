@@ -1,7 +1,7 @@
 from django.db import models
 import shortuuid
 
-from core.constants import BaseStatus, PUBLIC_ID_MAX_LENGTH, STATUS_MAX_LENGTH
+from core.constants import BaseStatus, PublicIdConstants, STATUS_MAX_LENGTH
 
 
 class CreatedAtMixin(models.Model):
@@ -54,13 +54,15 @@ class StatusMixin(models.Model):
         abstract = True
 
 
+def generate_public_id():
+    return shortuuid.uuid()[:PublicIdConstants.MAX_LENGTH]
+
+
 class PublicIdMixin(models.Model):
     public_id = models.CharField(
-        max_length=PUBLIC_ID_MAX_LENGTH,
+        max_length=PublicIdConstants.MAX_LENGTH,
         unique=True,
-        default=lambda: shortuuid.uuid()[
-            :PUBLIC_ID_MAX_LENGTH
-        ],
+        default=generate_public_id,
         editable=False
     )
 

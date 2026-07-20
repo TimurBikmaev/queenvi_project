@@ -2,7 +2,7 @@ from django.contrib.auth.models import AbstractUser
 from django.core.validators import MaxValueValidator, MinValueValidator
 from django.db import models
 
-from core.mixins import CreatedAtMixin, UpdatedMixin
+from core.mixins import CreatedAtMixin, StatusMixin, UpdatedMixin
 from user.constants import UserConstants
 from user.utils import avatar_upload_to
 
@@ -13,14 +13,19 @@ class UserRole(models.TextChoices):
     STREAMER = 'streamer', 'Стример'
 
 
-class User(CreatedAtMixin, UpdatedMixin, AbstractUser):
+class User(CreatedAtMixin, UpdatedMixin, StatusMixin, AbstractUser):
     twitch_id = models.CharField(
         'ID twitch-аккаунта',
         max_length=UserConstants.TWITCH_ID_MAX_LENGTH,
         unique=True,
     )
-    avatar = models.ImageField(
-        'Аватар',
+    avatar_url = models.URLField(
+        'Ссылка на аватарку юзера из твича',
+        null=True,
+        blank=True
+    )
+    custom_avatar = models.ImageField(
+        'Кастомная аватарка юзера',
         upload_to=avatar_upload_to,
         null=True,
         blank=True

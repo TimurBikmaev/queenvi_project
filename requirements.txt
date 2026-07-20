@@ -4,6 +4,6 @@ ipython
 pillow
 pytest
 python-dotenv
-requests
+requests[socks]
 ruff
 shortuuid

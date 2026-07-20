@@ -2,6 +2,7 @@ from django.contrib.auth import get_user_model
 from rest_framework import serializers
 
 from api.constants import SerializersConstants
+from api.mixins import AvatarSerializerMixin, BaseSerializerMixin
 from post.constants import CommentConstansts, PostConstants, ReportConstants
 from post.models import Comment, Post, Report
 from youtube_suggestion.constants import VideoConstants
@@ -11,24 +12,15 @@ from youtube_suggestion.models import Video
 User = get_user_model()
 
 
-class BaseSerializer(serializers.ModelSerializer):
-    def to_representation(self, obj):
-        """Исключение null-полей из ответа сериализатора."""
-        data = super().to_representation(obj)
-        return {
-            attr: value for attr, value in data.items()
-            if value is not None
-        }
-
-
-class ShortUserSerializer(BaseSerializer):
+class ShortUserSerializer(AvatarSerializerMixin, BaseSerializerMixin):
     """Краткая информация о юзере."""
+
     class Meta:
         model = User
-        fields = ['id', 'username', 'avatar']
+        fields = ['id', 'username', 'avatar_url']
 
 
-class CommentSerializer(BaseSerializer):
+class CommentSerializer(BaseSerializerMixin):
     """Сериализатор комментария."""
     text = serializers.CharField(
         max_length=CommentConstansts.TEXT_MAX_LENGTH
@@ -40,7 +32,7 @@ class CommentSerializer(BaseSerializer):
         fields = ['id', 'user', 'text', 'updated_at']
 
 
-class ShortPostSerializer(BaseSerializer):
+class ShortPostSerializer(BaseSerializerMixin):
     """Краткая информация о посте."""
     user = ShortUserSerializer()
     description = serializers.SerializerMethodField()
@@ -82,7 +74,7 @@ class ModerationPostSerializer(PostSerializer):
         fields = PostSerializer.Meta.fields + ['status']
 
 
-class UserSerializer(BaseSerializer):
+class UserSerializer(AvatarSerializerMixin, BaseSerializerMixin):
     """Сериализатор юзера."""
     posts_count = serializers.IntegerField()
     posts = ShortPostSerializer(many=True, source='visible_posts')
@@ -101,11 +93,11 @@ class ModerationUserSerializer(UserSerializer):
             'is_active', 'role', 'warnings', 'updated_at'
         ]
         read_only_fields = UserSerializer.Meta.read_only_fields + [
-            'avatar'
+            'avatar_url'
         ]
 
 
-class ReportSerializer(BaseSerializer):
+class ReportSerializer(BaseSerializerMixin):
     """Сериализатор жалобы."""
     text = serializers.CharField(
         max_length=ReportConstants.REASON_MAX_LENGTH,
@@ -117,7 +109,7 @@ class ReportSerializer(BaseSerializer):
         read_only_fields = ['user', 'post']
 
 
-class VideoSerializer(BaseSerializer):
+class VideoSerializer(BaseSerializerMixin):
     """Сериализатор видео."""
     youtube_url = serializers.URLField(write_only=True)
     comment = serializers.CharField(
