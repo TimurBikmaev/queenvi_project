@@ -82,12 +82,12 @@ class TwitchLoginService:
             twitch_id=data["id"],
             defaults={
                 "username": data["display_name"],
-                "avatar_url": data["profile_image_url"],
+                "twitch_avatar": data["profile_image_url"],
             },
         )
         if not created:
             user.username = data["display_name"]
-            user.avatar_url = data["profile_image_url"]
-            user.save(update_fields=["username", "avatar_url"])
+            user.twitch_avatar = data["profile_image_url"]
+            user.save(update_fields=["username", "twitch_avatar"])
 
         return user

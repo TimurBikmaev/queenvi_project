@@ -1,15 +1,18 @@
+from http import HTTPStatus
+
 from django.contrib.auth import get_user_model, login, logout
 from django.db.models import Count, Prefetch, Q
 from django.shortcuts import redirect
 from rest_framework import mixins
 from rest_framework.decorators import action
+from rest_framework.permissions import AllowAny, IsAuthenticated
 from rest_framework.response import Response
-from rest_framework.views import APIView
 from rest_framework.viewsets import GenericViewSet, ModelViewSet
 
 from api import serializers
 from api.mixins import HttpLookupMixin
 from core.constants import BaseStatus, PublicIdConstants
+from core.permissions import IsOwner
 from core.services import TwitchLoginService
 from post.models import Comment, Like, Media, Post, Report
 from youtube_suggestion.models import Video
@@ -18,20 +21,13 @@ from youtube_suggestion.models import Video
 User = get_user_model()
 
 
-class UserViewSet(
-    mixins.RetrieveModelMixin,
-    mixins.UpdateModelMixin,
-    GenericViewSet,
-):
+class UserViewSet(HttpLookupMixin, mixins.RetrieveModelMixin, GenericViewSet):
     queryset = User.objects.all()
     serializer_class = serializers.UserSerializer
-    http_method_names = ['get', 'patch']
     lookup_field = 'username'
+    permission_classes = [AllowAny]
 
-    def get_serializer_class(self):
-        return super().get_serializer_class()
-
-    def get_profile_queryset(self):
+    def get_queryset(self):
         return User.objects.annotate(
             posts_count=Count(
                 'posts',
@@ -53,12 +49,6 @@ class UserViewSet(
             )
         )
 
-    @action(detail=False, methods=['get', 'patch'])
-    def me(self, request):
-        user = self.get_profile_queryset().get(pk=request.user.pk)
-        serializer = self.get_serializer(user)
-        return Response(serializer.data)
-
     @action(detail=False, methods=['get'])
     def twitch_login(self, request):
         return redirect(TwitchLoginService.get_login_url(request))
@@ -67,14 +57,46 @@ class UserViewSet(
     def twitch_callback(self, request):
         user = TwitchLoginService.authenticate(request)
         login(request, user)
-        return redirect('profile-me')
+        return redirect('profile-detail', username=user.username)
 
-
-class LogoutAPIView(APIView):
-
-    def post(self, request):
+    @action(
+        detail=False,
+        methods=['post'],
+        permission_classes=[IsAuthenticated]
+    )
+    def logout(self, request):
         logout(request)
         return redirect('posts-list')
+
+    @action(
+        detail=False,
+        methods=['patch', 'delete'],
+        permission_classes=[IsAuthenticated]
+    )
+    def avatar(self, request):
+        user = self.get_queryset().get(pk=request.user.pk)
+        if request.method == 'DELETE':
+            if not user.custom_avatar:
+                return Response(
+                    {"detail": "Аватар не установлен"},
+                    status=HTTPStatus.BAD_REQUEST
+                )
+            user.custom_avatar.delete(save=False)
+            user.custom_avatar = None
+            user.save()
+            serializer = self.get_serializer(user)
+            return Response(serializer.data, HTTPStatus.OK)
+
+        serializer = self.get_serializer(
+            user,
+            data=request.data,
+            partial=True
+        )
+        serializer.is_valid(raise_exception=True)
+        if 'custom_avatar' in serializer.validated_data and user.custom_avatar:
+            user.custom_avatar.delete(save=False)
+        serializer.save()
+        return Response(serializer.data, HTTPStatus.OK)
 
 
 class PostViewSet(HttpLookupMixin, ModelViewSet):

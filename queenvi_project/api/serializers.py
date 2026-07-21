@@ -12,12 +12,12 @@ from youtube_suggestion.models import Video
 User = get_user_model()
 
 
-class ShortUserSerializer(AvatarSerializerMixin, BaseSerializerMixin):
+class ShortUserSerializer(AvatarSerializerMixin):
     """Краткая информация о юзере."""
 
     class Meta:
         model = User
-        fields = ['id', 'username', 'avatar_url']
+        fields = ['id', 'username', 'twitch_avatar', 'custom_avatar']
 
 
 class CommentSerializer(BaseSerializerMixin):
@@ -93,7 +93,7 @@ class ModerationUserSerializer(UserSerializer):
             'is_active', 'role', 'warnings', 'updated_at'
         ]
         read_only_fields = UserSerializer.Meta.read_only_fields + [
-            'avatar_url'
+            'twitch_avatar', 'custom_avatar'
         ]
 
 

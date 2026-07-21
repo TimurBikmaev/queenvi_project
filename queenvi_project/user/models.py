@@ -19,7 +19,7 @@ class User(CreatedAtMixin, UpdatedMixin, StatusMixin, AbstractUser):
         max_length=UserConstants.TWITCH_ID_MAX_LENGTH,
         unique=True,
     )
-    avatar_url = models.URLField(
+    twitch_avatar = models.URLField(
         'Ссылка на аватарку юзера из твича',
         null=True,
         blank=True
