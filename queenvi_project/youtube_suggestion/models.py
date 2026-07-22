@@ -1,13 +1,13 @@
 from django.db import models
 
-from core.mixins import CreatedAtMixin, StatusMixin
+from core.mixins import CreatedAtMixin, PublicIdMixin, StatusMixin
 from user.models import User
 from youtube_suggestion.constants import (
     Category, CategoryConstants,  VideoConstants
 )
 
 
-class Video(CreatedAtMixin, StatusMixin):
+class Video(CreatedAtMixin, PublicIdMixin, StatusMixin):
     youtube_id = models.CharField(
         'ID видео',
         max_length=VideoConstants.VIDEO_ID_MAX_LENGTH,
@@ -25,14 +25,16 @@ class Video(CreatedAtMixin, StatusMixin):
         'Название канала',
         max_length=VideoConstants.CHANNEL_NAME_MAX_LENGTH
     )
-    likes = models.PositiveIntegerField('Лайки')
-    comments = models.PositiveIntegerField('Комментарии')
     duration = models.SmallIntegerField('Длительность')
-    published = models.DateTimeField('Дата публикации')
+    pub_date = models.DateTimeField('Дата публикации')
     category = models.CharField(
         'Категория',
         max_length=CategoryConstants.CATEGORY_MAX_LENGTH,
         choices=Category.choices,
+    )
+    comment = models.CharField(
+        'Комментарий к видео',
+        max_length=VideoConstants.COMMENT_MAX_LENGTH
     )
     user = models.ForeignKey(
         User,

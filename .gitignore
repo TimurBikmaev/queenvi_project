@@ -165,6 +165,9 @@ __marimo__/
 # Migrations
 migrations/
 
+# Media
+media/
+
 # Project requirements
 project_guide/
 notes.txt

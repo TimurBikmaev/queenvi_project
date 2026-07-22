@@ -1,6 +1,8 @@
 from django.db import models
 
-from core.mixins import CreatedAtMixin, StatusMixin, UpdatedMixin
+from core.mixins import (
+    CreatedAtMixin, PublicIdMixin, StatusMixin, UpdatedMixin
+)
 from post.constants import (
     CommentConstansts,
     MediaConstants,
@@ -13,7 +15,7 @@ from post.utils import media_upload_to
 from user.models import User
 
 
-class Post(CreatedAtMixin, UpdatedMixin, StatusMixin):
+class Post(PublicIdMixin, CreatedAtMixin, UpdatedMixin, StatusMixin):
     name = models.CharField(
         'Название',
         max_length=PostConstants.NAME_MAX_LENGTH
@@ -76,7 +78,7 @@ class Like(models.Model):
         return (f'Like id: {self.id} | post_id: {self.post_id}')
 
 
-class Comment(CreatedAtMixin, UpdatedMixin, StatusMixin):
+class Comment(PublicIdMixin, CreatedAtMixin, UpdatedMixin, StatusMixin):
     text = models.TextField(
         'Текст',
         max_length=CommentConstansts.TEXT_MAX_LENGTH
@@ -106,9 +108,9 @@ class Comment(CreatedAtMixin, UpdatedMixin, StatusMixin):
         return (f'Comment id: {self.id} | post_id: {self.post_id}')
 
 
-class Report(models.Model):
-    reason = models.TextField(
-        'Причина',
+class Report(PublicIdMixin):
+    text = models.TextField(
+        'Описание причины жалобы',
         max_length=ReportConstants.REASON_MAX_LENGTH,
     )
     status = models.CharField(

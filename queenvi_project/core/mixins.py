@@ -1,6 +1,7 @@
 from django.db import models
+import shortuuid
 
-from core.constants import BaseStatus, StatusConstants
+from core.constants import BaseStatus, PublicIdConstants, STATUS_MAX_LENGTH
 
 
 class CreatedAtMixin(models.Model):
@@ -20,7 +21,7 @@ class UpdatedMixin(models.Model):
 class StatusMixin(models.Model):
     status = models.CharField(
         'Статус',
-        max_length=StatusConstants.STATUS_MAX_LENGTH,
+        max_length=STATUS_MAX_LENGTH,
         choices=BaseStatus.choices,
         default=BaseStatus.VISIBLE,
     )
@@ -48,6 +49,22 @@ class StatusMixin(models.Model):
     @property
     def is_banned(self):
         return self.status == BaseStatus.BANNED
+
+    class Meta:
+        abstract = True
+
+
+def generate_public_id():
+    return shortuuid.uuid()[:PublicIdConstants.MAX_LENGTH]
+
+
+class PublicIdMixin(models.Model):
+    public_id = models.CharField(
+        max_length=PublicIdConstants.MAX_LENGTH,
+        unique=True,
+        default=generate_public_id,
+        editable=False
+    )
 
     class Meta:
         abstract = True
