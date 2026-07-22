@@ -5,7 +5,9 @@ from django.db.models import Count, Prefetch, Q
 from django.shortcuts import redirect
 from rest_framework import mixins
 from rest_framework.decorators import action
-from rest_framework.permissions import AllowAny, IsAuthenticated
+from rest_framework.permissions import (
+    AllowAny, IsAuthenticated, IsAuthenticatedOrReadOnly
+)
 from rest_framework.response import Response
 from rest_framework.viewsets import GenericViewSet, ModelViewSet
 
@@ -102,6 +104,21 @@ class UserViewSet(HttpLookupMixin, mixins.RetrieveModelMixin, GenericViewSet):
 class PostViewSet(HttpLookupMixin, ModelViewSet):
     queryset = Post.objects.all()
     serializer_class = serializers.PostSerializer
+    permission_classes = [IsAuthenticatedOrReadOnly, IsOwner]
+
+    def get_serializer(self, *args, **kwargs):
+        if self.action == 'list':
+            return serializers.ShortPostSerializer(*args, **kwargs)
+        return super().get_serializer(*args, **kwargs)
+
+    def get_queryset(self):
+        return Post.objects.annotate(
+            likes_count=Count('likes'),
+            comments_count=Count('comments')
+        )
+
+    def perform_create(self, serializer):
+        serializer.save(user=self.request.user)
 
     @action(detail=True, methods=['post', 'delete'])
     def like(self, request):

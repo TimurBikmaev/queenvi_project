@@ -12,6 +12,8 @@ class HttpLookupMixin:
 
 # serializers.py
 class BaseSerializerMixin(serializers.ModelSerializer):
+    public_id = serializers.ReadOnlyField()
+
     def to_representation(self, obj):
         """Исключение null-полей из ответа сериализатора."""
         data = super().to_representation(obj)
@@ -45,7 +47,7 @@ class AvatarSerializerMixin(serializers.ModelSerializer):
         return image
 
     def to_representation(self, obj):
-        """Исключение null-полей из ответа сериализатора."""
+        """Если юзер поставил свою аватарку, то скрываем твичовскую."""
         data = super().to_representation(obj)
         if obj.custom_avatar:
             del data['twitch_avatar']
