@@ -2,9 +2,10 @@ from django.contrib.auth import get_user_model
 from rest_framework import serializers
 
 from api.constants import SerializersConstants
+from api.utils import file_extension_revealing
 from api.mixins import AvatarSerializerMixin, BaseSerializerMixin
 from post.constants import CommentConstansts, PostConstants, ReportConstants
-from post.models import Comment, Post, Report
+from post.models import Comment, Like, Media, Post, Report
 from youtube_suggestion.constants import VideoConstants
 from youtube_suggestion.models import Video
 
@@ -17,7 +18,7 @@ class ShortUserSerializer(AvatarSerializerMixin):
 
     class Meta:
         model = User
-        fields = ['id', 'username', 'twitch_avatar', 'custom_avatar']
+        fields = ['username', 'twitch_avatar', 'custom_avatar']
 
 
 class CommentSerializer(BaseSerializerMixin):
@@ -29,28 +30,51 @@ class CommentSerializer(BaseSerializerMixin):
 
     class Meta:
         model = Comment
-        fields = ['id', 'user', 'text', 'updated_at']
+        fields = ['public_id', 'user', 'text', 'updated_at']
+
+
+class MediaSerializer(serializers.ModelSerializer):
+    """Серилизатор медиа."""
+    class Meta:
+        model = Media
+        fields = ['file', 'type_of_file', 'created_at']
 
 
 class ShortPostSerializer(BaseSerializerMixin):
     """Краткая информация о посте."""
-    user = ShortUserSerializer()
-    description = serializers.SerializerMethodField()
-    media = ...  # Только первый файл (methodfield).
-    likes_count = ...
-    comments_count = ...
+    user = ShortUserSerializer(read_only=True)
+    name = serializers.SerializerMethodField(read_only=True)
+    description = serializers.SerializerMethodField(read_only=True)
+    # Только первый файл (methodfield).
+    media = MediaSerializer(many=True, read_only=True)
+    likes_count = serializers.ReadOnlyField(read_only=True)
+    comments_count = serializers.ReadOnlyField(read_only=True)
 
     class Meta:
         model = Post
         fields = [
-            'id', 'user', 'name', 'description', 'media',
-            'is_for_stream', 'likes_count', 'comments_count', 'updated_at',
+            'public_id', 'user', 'name', 'description',  'media',
+            'likes_count', 'comments_count', 'created_at',
+        ]
+
+    def get_name(self, obj):
+        """Возвращает лишь первые несколько символов для название."""
+        return obj.name[
+            :SerializersConstants.POST_PROFILE_NAME_MAX_LENGTH
         ]
 
     def get_description(self, obj):
+        """Возвращает лишь первые несколько символов для описания."""
         return obj.description[
             :SerializersConstants.POST_PROFILE_DESCRIPTION_MAX_LENGTH
         ]
+
+    def to_representation(self, obj):
+        """Если в описании пустая строка, скрываем его."""
+        data = super().to_representation(obj)
+        if data['description'] == '':
+            del data['description']
+        return data
 
 
 class PostSerializer(ShortPostSerializer):
@@ -59,13 +83,31 @@ class PostSerializer(ShortPostSerializer):
         max_length=PostConstants.NAME_MAX_LENGTH
     )
     description = serializers.CharField(
-        max_length=PostConstants.DESCRIPTION_MAX_LENGTH
+        max_length=PostConstants.DESCRIPTION_MAX_LENGTH,
+        required=False,
+        allow_blank=True
     )
-    comments = CommentSerializer(many=True)
+    comments = CommentSerializer(many=True, read_only=True)
+    media = serializers.ListField(
+        child=serializers.FileField(),
+        min_length=SerializersConstants.POST_MEDIA_MIN_COUNT
+    )
 
     class Meta(ShortPostSerializer.Meta):
-        fields = ShortPostSerializer.Meta.fields + ['comments']
-        read_only_fields = ['user', 'likes_count', 'comments_count']
+        fields = ShortPostSerializer.Meta.fields + [
+            'comments', 'is_for_stream'
+        ]
+
+    def create(self, validated_data):
+        post = Post.objects.create(**validated_data)
+        for file in validated_data.pop('media'):
+            file_extenstion = file_extension_revealing(file)
+            Media.objects.create(
+                post=post,
+                file=file,
+                type_of_file=file_extenstion
+            )
+        return post
 
 
 class ModerationPostSerializer(PostSerializer):
@@ -76,14 +118,18 @@ class ModerationPostSerializer(PostSerializer):
 
 class UserSerializer(AvatarSerializerMixin, BaseSerializerMixin):
     """Сериализатор юзера."""
-    posts_count = serializers.IntegerField()
-    posts = ShortPostSerializer(many=True, source='visible_posts')
+    posts_count = serializers.ReadOnlyField()
+    posts = ShortPostSerializer(
+        many=True,
+        source='visible_posts',
+        read_only=True
+    )
 
     class Meta(ShortUserSerializer.Meta):
         fields = ShortUserSerializer.Meta.fields + [
             'posts_count', 'posts', 'created_at'
         ]
-        read_only_fields = ['username', 'posts_count', 'posts']
+        read_only_fields = ['username']
 
 
 class ModerationUserSerializer(UserSerializer):
@@ -92,9 +138,7 @@ class ModerationUserSerializer(UserSerializer):
         fields = UserSerializer.Meta.fields + [
             'is_active', 'role', 'warnings', 'updated_at'
         ]
-        read_only_fields = UserSerializer.Meta.read_only_fields + [
-            'twitch_avatar', 'custom_avatar'
-        ]
+        read_only_fields = ['username', 'twitch_avatar', 'custom_avatar']
 
 
 class ReportSerializer(BaseSerializerMixin):
@@ -105,7 +149,7 @@ class ReportSerializer(BaseSerializerMixin):
 
     class Meta:
         model = Report
-        fields = ['id', 'text', 'user', 'post', 'created_at']
+        fields = ['public_id', 'text', 'user', 'post', 'created_at']
         read_only_fields = ['user', 'post']
 
 
@@ -129,7 +173,7 @@ class VideoSerializer(BaseSerializerMixin):
     class Meta:
         model = Video
         fields = [
-            'id', 'youtube_url', 'user', 'name', 'preview',
+            'public_id', 'youtube_url', 'user', 'name', 'preview',
             'channel_name', 'duration', 'pub_date', 'category', 'comment'
         ]
         read_only_fields = [
