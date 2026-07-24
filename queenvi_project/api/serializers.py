@@ -46,14 +46,14 @@ class ShortPostSerializer(BaseSerializerMixin):
     name = serializers.SerializerMethodField(read_only=True)
     description = serializers.SerializerMethodField(read_only=True)
     # Только первый файл (methodfield).
-    media = MediaSerializer(many=True, read_only=True)
+    one_media = MediaSerializer(many=True, read_only=True)
     likes_count = serializers.ReadOnlyField(read_only=True)
     comments_count = serializers.ReadOnlyField(read_only=True)
 
     class Meta:
         model = Post
         fields = [
-            'public_id', 'user', 'name', 'description',  'media',
+            'public_id', 'user', 'name', 'description',  'one_media',
             'likes_count', 'comments_count', 'created_at',
         ]
 
@@ -88,19 +88,26 @@ class PostSerializer(ShortPostSerializer):
         allow_blank=True
     )
     comments = CommentSerializer(many=True, read_only=True)
-    media = serializers.ListField(
+    create_media = serializers.ListField(
         child=serializers.FileField(),
-        min_length=SerializersConstants.POST_MEDIA_MIN_COUNT
+        min_length=SerializersConstants.POST_MEDIA_MIN_COUNT,
+        write_only=True
+    )
+    list_media = MediaSerializer(
+        source='media',
+        many=True,
+        read_only=True
     )
 
     class Meta(ShortPostSerializer.Meta):
         fields = ShortPostSerializer.Meta.fields + [
-            'comments', 'is_for_stream'
+            'is_for_stream', 'create_media', 'list_media', 'comments'
         ]
 
     def create(self, validated_data):
+        files = validated_data.pop('media')
         post = Post.objects.create(**validated_data)
-        for file in validated_data.pop('media'):
+        for file in files:
             file_extenstion = file_extension_revealing(file)
             Media.objects.create(
                 post=post,

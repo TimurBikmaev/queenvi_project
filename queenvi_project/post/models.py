@@ -174,6 +174,7 @@ class Report(PublicIdMixin):
 
 
 class Media(CreatedAtMixin):
+    # СДЕЛАТЬ ПОЛЕ ORDER ДЛЯ СОХРАНЕНИЯ ПОРЯДКА В ГАЛЕРЕИ ПОСТА
     file = models.FileField('Медиа', upload_to=media_upload_to)
     type_of_file = models.CharField(
         'Тип файла',
