@@ -6,4 +6,3 @@ pytest
 python-dotenv
 requests[socks]
 ruff
-shortuuid

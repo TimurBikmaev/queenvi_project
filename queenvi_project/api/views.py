@@ -16,7 +16,9 @@ from api.mixins import HttpLookupMixin
 from core.constants import BaseStatus, PublicIdConstants
 from core.permissions import IsOwner
 from core.services import TwitchLoginService
+from post.constants import MediaConstants as MC
 from post.models import Comment, Like, Media, Post, Report
+from post.utils import MediaUtils
 from youtube_suggestion.models import Video
 
 
@@ -106,19 +108,32 @@ class PostViewSet(HttpLookupMixin, ModelViewSet):
     serializer_class = serializers.PostSerializer
     permission_classes = [IsAuthenticatedOrReadOnly, IsOwner]
 
-    def get_serializer(self, *args, **kwargs):
+    def get_serializer_class(self):
         if self.action == 'list':
-            return serializers.ShortPostSerializer(*args, **kwargs)
-        return super().get_serializer(*args, **kwargs)
+            return serializers.ShortPostSerializer
+        return serializers.PostSerializer
 
     def get_queryset(self):
-        return Post.objects.annotate(
+        queryset = Post.objects.annotate(
             likes_count=Count('likes'),
             comments_count=Count('comments')
         )
+        if self.action == 'list':
+            queryset = queryset.prefetch_related(Prefetch(
+                'media',
+                queryset=Media.objects.filter(order=MC.PREVIEW_ORDER),
+                to_attr='preview_media'
+            ))
+        return queryset
 
     def perform_create(self, serializer):
         serializer.save(user=self.request.user)
+
+    def destroy(self, request, *args, **kwargs):
+        post = self.get_object()
+        MediaUtils.del_media_catalog(post.public_id)
+        self.perform_destroy(post)
+        return Response(status=HTTPStatus.NO_CONTENT)
 
     @action(detail=True, methods=['post', 'delete'])
     def like(self, request):

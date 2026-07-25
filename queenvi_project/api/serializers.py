@@ -2,10 +2,13 @@ from django.contrib.auth import get_user_model
 from rest_framework import serializers
 
 from api.constants import SerializersConstants
-from api.utils import file_extension_revealing
 from api.mixins import AvatarSerializerMixin, BaseSerializerMixin
-from post.constants import CommentConstansts, PostConstants, ReportConstants
+from post.constants import (
+    CommentConstansts, MediaConstants as MC, PostConstants, ReportConstants
+)
+from post.errors import MediaValidationError
 from post.models import Comment, Like, Media, Post, Report
+from post.utils import MediaUtils
 from youtube_suggestion.constants import VideoConstants
 from youtube_suggestion.models import Video
 
@@ -33,11 +36,17 @@ class CommentSerializer(BaseSerializerMixin):
         fields = ['public_id', 'user', 'text', 'updated_at']
 
 
-class MediaSerializer(serializers.ModelSerializer):
-    """Серилизатор медиа."""
+class ShortMediaSerializer(serializers.ModelSerializer):
+    """Превью поста."""
     class Meta:
         model = Media
-        fields = ['file', 'type_of_file', 'created_at']
+        fields = ['file', 'file_type']
+
+
+class MediaSerializer(ShortMediaSerializer):
+    """Серилизатор медиа."""
+    class Meta(ShortMediaSerializer.Meta):
+        fields = ShortMediaSerializer.Meta.fields + ['order', 'created_at']
 
 
 class ShortPostSerializer(BaseSerializerMixin):
@@ -45,16 +54,15 @@ class ShortPostSerializer(BaseSerializerMixin):
     user = ShortUserSerializer(read_only=True)
     name = serializers.SerializerMethodField(read_only=True)
     description = serializers.SerializerMethodField(read_only=True)
-    # Только первый файл (methodfield).
-    media = MediaSerializer(many=True, read_only=True)
-    likes_count = serializers.ReadOnlyField(read_only=True)
-    comments_count = serializers.ReadOnlyField(read_only=True)
+    preview = serializers.SerializerMethodField(read_only=True)
+    likes_count = serializers.ReadOnlyField()
+    comments_count = serializers.ReadOnlyField()
 
     class Meta:
         model = Post
         fields = [
-            'public_id', 'user', 'name', 'description',  'media',
-            'likes_count', 'comments_count', 'created_at',
+            'public_id', 'user', 'name', 'description', 'preview',
+            'likes_count', 'comments_count', 'created_at'
         ]
 
     def get_name(self, obj):
@@ -68,6 +76,10 @@ class ShortPostSerializer(BaseSerializerMixin):
         return obj.description[
             :SerializersConstants.POST_PROFILE_DESCRIPTION_MAX_LENGTH
         ]
+
+    def get_preview(self, obj):
+        preview = obj.preview_media[MC.PREVIEW_ORDER]
+        return ShortMediaSerializer(preview, context=self.context).data
 
     def to_representation(self, obj):
         """Если в описании пустая строка, скрываем его."""
@@ -88,26 +100,54 @@ class PostSerializer(ShortPostSerializer):
         allow_blank=True
     )
     comments = CommentSerializer(many=True, read_only=True)
-    media = serializers.ListField(
+    create_media = serializers.ListField(
         child=serializers.FileField(),
-        min_length=SerializersConstants.POST_MEDIA_MIN_COUNT
+        min_length=SerializersConstants.POST_MEDIA_MIN_COUNT,
+        max_length=SerializersConstants.POST_MEDIA_MAX_COUNT,
+        write_only=True
+    )
+    list_media = MediaSerializer(
+        source='media',
+        many=True,
+        read_only=True
     )
 
     class Meta(ShortPostSerializer.Meta):
-        fields = ShortPostSerializer.Meta.fields + [
-            'comments', 'is_for_stream'
+        fields = [
+            'public_id', 'user', 'name', 'description',
+            'is_for_stream', 'likes_count', 'comments_count',
+            'create_media', 'list_media', 'comments', 'created_at'
         ]
 
+    def check_media_data(self, files):
+        try:
+            media_data = MediaUtils.collect_media_data(files)
+        except MediaValidationError as e:
+            raise serializers.ValidationError(MC.TYPE_ERROR.format(ext=e.ext))
+        return media_data
+
     def create(self, validated_data):
+        files = validated_data.pop('create_media')
+        media_data = self.check_media_data(files)
         post = Post.objects.create(**validated_data)
-        for file in validated_data.pop('media'):
-            file_extenstion = file_extension_revealing(file)
-            Media.objects.create(
-                post=post,
-                file=file,
-                type_of_file=file_extenstion
-            )
+        Media.objects.bulk_create(
+            Media(post=post, **data)
+            for data in media_data
+        )
         return post
+
+    def update(self, instance, validated_data):
+        files = validated_data.pop("create_media", None)
+        if files is not None:
+            media_data = self.check_media_data(files)
+            instance.media.all().delete()
+            MediaUtils.del_media_catalog(instance.public_id)
+            instance = super().update(instance, validated_data)
+            Media.objects.bulk_create(
+                Media(post=instance, **data)
+                for data in media_data
+            )
+            return instance
 
 
 class ModerationPostSerializer(PostSerializer):
