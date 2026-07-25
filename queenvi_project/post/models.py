@@ -11,7 +11,7 @@ from post.constants import (
     ReportConstants,
     ReportStatus
 )
-from post.utils import media_upload_to
+from post.utils import MediaUtils
 from user.models import User
 
 
@@ -174,9 +174,8 @@ class Report(PublicIdMixin):
 
 
 class Media(CreatedAtMixin):
-    # СДЕЛАТЬ ПОЛЕ ORDER ДЛЯ СОХРАНЕНИЯ ПОРЯДКА В ГАЛЕРЕИ ПОСТА
-    file = models.FileField('Медиа', upload_to=media_upload_to)
-    type_of_file = models.CharField(
+    file = models.FileField('Медиа', upload_to=MediaUtils.media_upload_to)
+    file_type = models.CharField(
         'Тип файла',
         max_length=MediaConstants.TYPE_MAX_LENGTH,
         choices=MediaType.choices,
@@ -187,6 +186,7 @@ class Media(CreatedAtMixin):
         related_name='media',
         verbose_name='Медиа'
     )
+    order = models.PositiveSmallIntegerField()
 
     class Meta:
         verbose_name = "Медиа"

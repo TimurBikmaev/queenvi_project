@@ -29,4 +29,13 @@ class MediaType(TextChoices):
 
 
 class MediaConstants:
+    FORMAT_AUDIO = ['.mp3']
+    FORMAT_PHOTO = ['.jpg', '.jpeg', '.jfif', '.png']
+    FORMAT_VIDEO = ['.mp4']
+    PREVIEW_ORDER = 0
+    TYPE_ERROR = (
+        'Формат вашего файла \'{ext}\' запрещен для загрузки:( '
+        f'Допустимые форматы фото: {FORMAT_PHOTO}; '
+        f'видео: {FORMAT_VIDEO}; аудио: {FORMAT_AUDIO}'
+    )
     TYPE_MAX_LENGTH = 20
