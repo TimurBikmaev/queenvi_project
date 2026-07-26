@@ -33,7 +33,7 @@ class CommentSerializer(BaseSerializerMixin):
 
     class Meta:
         model = Comment
-        fields = ['public_id', 'user', 'text', 'updated_at']
+        fields = ['public_id', 'user', 'text', 'created_at']
 
 
 class ShortMediaSerializer(serializers.ModelSerializer):
@@ -57,12 +57,13 @@ class ShortPostSerializer(BaseSerializerMixin):
     preview = serializers.SerializerMethodField(read_only=True)
     likes_count = serializers.ReadOnlyField()
     comments_count = serializers.ReadOnlyField()
+    is_liked = serializers.BooleanField(read_only=True, default=False)
 
     class Meta:
         model = Post
         fields = [
             'public_id', 'user', 'name', 'description', 'preview',
-            'likes_count', 'comments_count', 'created_at'
+            'likes_count', 'comments_count', 'is_liked', 'created_at'
         ]
 
     def get_name(self, obj):
@@ -115,7 +116,7 @@ class PostSerializer(ShortPostSerializer):
     class Meta(ShortPostSerializer.Meta):
         fields = [
             'public_id', 'user', 'name', 'description',
-            'is_for_stream', 'likes_count', 'comments_count',
+            'is_for_stream', 'likes_count', 'comments_count', 'is_liked',
             'create_media', 'list_media', 'comments', 'created_at'
         ]
 
