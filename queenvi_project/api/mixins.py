@@ -4,7 +4,7 @@ from rest_framework import serializers
 from user.constants import UserConstants as UC
 
 
-# view.py
+# views.py
 class HttpLookupMixin:
     http_method_names = ['get', 'post', 'patch', 'delete']
     lookup_field = 'public_id'

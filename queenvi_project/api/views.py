@@ -1,8 +1,8 @@
 from http import HTTPStatus
 
 from django.contrib.auth import get_user_model, login, logout
-from django.db.models import Count, Prefetch, Q
-from django.shortcuts import redirect
+from django.db.models import Count, Exists, OuterRef, Prefetch, Q
+from django.shortcuts import get_object_or_404, redirect
 from rest_framework import mixins
 from rest_framework.decorators import action
 from rest_framework.permissions import (
@@ -82,7 +82,7 @@ class UserViewSet(HttpLookupMixin, mixins.RetrieveModelMixin, GenericViewSet):
         if request.method == 'DELETE':
             if not user.custom_avatar:
                 return Response(
-                    {"detail": "Аватар не установлен"},
+                    {'detail': 'Аватар не установлен'},
                     status=HTTPStatus.BAD_REQUEST
                 )
             user.custom_avatar.delete(save=False)
@@ -116,8 +116,15 @@ class PostViewSet(HttpLookupMixin, ModelViewSet):
     def get_queryset(self):
         queryset = Post.objects.annotate(
             likes_count=Count('likes'),
-            comments_count=Count('comments')
+            comments_count=Count('comments'),
         )
+        if self.request.user.is_authenticated:
+            queryset = queryset.annotate(
+                is_liked=Exists(Like.objects.filter(
+                    post=OuterRef('pk'),
+                    user=self.request.user
+                ))
+            )
         if self.action == 'list':
             queryset = queryset.prefetch_related(Prefetch(
                 'media',
@@ -135,9 +142,20 @@ class PostViewSet(HttpLookupMixin, ModelViewSet):
         self.perform_destroy(post)
         return Response(status=HTTPStatus.NO_CONTENT)
 
-    @action(detail=True, methods=['post', 'delete'])
-    def like(self, request):
-        ...
+    @action(
+        detail=True,
+        methods=['post', 'delete'],
+        permission_classes=[IsAuthenticated]
+    )
+    def like(self, request, public_id=None):
+        post = self.get_object()
+        if request.method == 'POST':
+            Like.objects.get_or_create(post=post, user=request.user)
+        else:
+            Like.objects.filter(post=post, user=request.user).delete()
+        post = self.get_queryset().get(public_id=public_id)
+        serializer = self.get_serializer(post)
+        return Response(serializer.data, HTTPStatus.OK)
 
 
 class CommentViewSet(
@@ -149,8 +167,18 @@ class CommentViewSet(
     GenericViewSet
 ):
     queryset = Comment.objects.all()
-    serializer_class = serializers.PostSerializer
+    serializer_class = serializers.CommentSerializer
     lookup_value_regex = PublicIdConstants.URL_REGEX
+    permission_classes = [IsAuthenticatedOrReadOnly]
+
+    def get_permissions(self):
+        if self.action in ('partial_update', 'destroy'):
+            return [IsOwner()]
+        return [IsAuthenticatedOrReadOnly()]
+
+    def perform_create(self, serializer):
+        post = get_object_or_404(Post, public_id=self.kwargs['post_id'])
+        serializer.save(user=self.request.user, post=post)
 
 
 class ReportViewSet(ModelViewSet):
