@@ -3,9 +3,9 @@ from urllib.parse import urlencode
 
 from django.conf import settings
 import requests
-from rest_framework.exceptions import ValidationError
 
-from core.constants import TwitchLoginConstants
+from user.constants import TwitchLoginConstants
+from user.errors import StateValidationError
 from user.models import User
 
 
@@ -21,7 +21,6 @@ class TwitchLoginService:
             "client_id": settings.TWITCH_CLIENT_ID,
             "redirect_uri": settings.TWITCH_REDIRECT_URI,
             "response_type": TwitchLoginConstants.TYPE_RESPONSE,
-            # "scope": TwitchLoginConstants.SCOPE,
             "state": state,
         }
         return TwitchLoginConstants.URL_AUTH + urlencode(params)
@@ -40,7 +39,7 @@ class TwitchLoginService:
         received_state = request.GET.get('state')
         saved_state = request.session.pop("oauth_state", None)
         if received_state != saved_state:
-            raise ValidationError("Не удалось выполнить вход через твич:(")
+            raise StateValidationError()
 
     @staticmethod
     def get_access_token(request):
@@ -77,17 +76,19 @@ class TwitchLoginService:
 
     @staticmethod
     def create_user_from_twitch_data(data):
-        """Создание юзера из данных твич-аккаунта."""
+        """Создание или обновление юзера из данных твич-аккаунта."""
         user, created = User.objects.get_or_create(
-            twitch_id=data["id"],
+            twitch_id=data['id'],
             defaults={
-                "username": data["display_name"],
-                "twitch_avatar": data["profile_image_url"],
+                'username': data['display_name'],
+                'twitch_avatar': data['profile_image_url'],
             },
         )
-        if not created:
-            user.username = data["display_name"]
-            user.twitch_avatar = data["profile_image_url"]
-            user.save(update_fields=["username", "twitch_avatar"])
-
+        if created:
+            user.set_unusable_password()
+            user.save(update_fields=["password"])
+        else:
+            user.username = data['display_name']
+            user.twitch_avatar = data['profile_image_url']
+            user.save(update_fields=['username', 'twitch_avatar'])
         return user

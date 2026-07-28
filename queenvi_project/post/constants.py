@@ -1,6 +1,16 @@
 from django.db.models import TextChoices
 
 
+class PostCommentStatus(TextChoices):
+    VISIBLE = 'visible', 'Виден всем'
+    HIDDEN = 'hidden', 'Спрятан от всех и ждет модерации'
+    BANNED = 'banned', 'Заблокирован модератором'
+
+
+class PostCommentStatusConstants:
+    MAX_LENGTH = 20
+
+
 class PostConstants:
     DESCRIPTION_MAX_LENGTH = 1000
     NAME_MAX_LENGTH = 100
@@ -33,9 +43,4 @@ class MediaConstants:
     FORMAT_PHOTO = ['.jpg', '.jpeg', '.jfif', '.png']
     FORMAT_VIDEO = ['.mp4']
     PREVIEW_ORDER = 0
-    TYPE_ERROR = (
-        'Формат вашего файла \'{ext}\' запрещен для загрузки:( '
-        f'Допустимые форматы фото: {FORMAT_PHOTO}; '
-        f'видео: {FORMAT_VIDEO}; аудио: {FORMAT_AUDIO}'
-    )
     TYPE_MAX_LENGTH = 20

@@ -5,6 +5,7 @@ from django.db.models import Count, Exists, OuterRef, Prefetch, Q
 from django.shortcuts import get_object_or_404, redirect
 from rest_framework import mixins
 from rest_framework.decorators import action
+from rest_framework.exceptions import ValidationError
 from rest_framework.permissions import (
     AllowAny, IsAuthenticated, IsAuthenticatedOrReadOnly
 )
@@ -13,12 +14,13 @@ from rest_framework.viewsets import GenericViewSet, ModelViewSet
 
 from api import serializers
 from api.mixins import HttpLookupMixin
-from core.constants import BaseStatus, PublicIdConstants
-from core.permissions import IsOwner
-from core.services import TwitchLoginService
-from post.constants import MediaConstants as MC
+from core.constants import PublicIdConstants
+from post.constants import MediaConstants as MC, PostCommentStatus
 from post.models import Comment, Like, Media, Post, Report
 from post.utils import MediaUtils
+from user.errors import StateValidationError
+from user.permissions import IsOwner
+from user.services import TwitchLoginService
 from youtube_suggestion.models import Video
 
 
@@ -35,18 +37,18 @@ class UserViewSet(HttpLookupMixin, mixins.RetrieveModelMixin, GenericViewSet):
         return User.objects.annotate(
             posts_count=Count(
                 'posts',
-                filter=Q(posts__status=BaseStatus.VISIBLE),
+                filter=Q(posts__status=PostCommentStatus.VISIBLE),
             )
         ).prefetch_related(
             Prefetch(
                 'posts',
                 queryset=Post.objects.filter(
-                    status=BaseStatus.VISIBLE
+                    status=PostCommentStatus.VISIBLE
                 ).annotate(
                     likes_count=Count('likes'),
                     comments_count=Count(
                         'comments',
-                        filter=Q(comments__status=BaseStatus.VISIBLE)
+                        filter=Q(comments__status=PostCommentStatus.VISIBLE)
                     )
                 ),
                 to_attr='visible_posts',
@@ -59,7 +61,10 @@ class UserViewSet(HttpLookupMixin, mixins.RetrieveModelMixin, GenericViewSet):
 
     @action(detail=False, methods=['get'])
     def twitch_callback(self, request):
-        user = TwitchLoginService.authenticate(request)
+        try:
+            user = TwitchLoginService.authenticate(request)
+        except StateValidationError as e:
+            raise ValidationError(e.message)
         login(request, user)
         return redirect('profile-detail', username=user.username)
 
@@ -188,6 +193,22 @@ class ReportViewSet(ModelViewSet):
     lookup_field = 'public_id'
 
 
-class VideoViewSet(HttpLookupMixin, ModelViewSet):
+class VideoViewSet(
+        HttpLookupMixin,
+        mixins.ListModelMixin,
+        mixins.CreateModelMixin,
+        mixins.UpdateModelMixin,
+        GenericViewSet
+):
     queryset = Video.objects.all()
     serializer_class = serializers.VideoSerializer
+    permission_classes = [IsAuthenticatedOrReadOnly]
+    http_method_names = ['get', 'post', 'patch']
+
+    # def get_permissions(self):
+    #     if self.action == 'PATCH':
+    #         self.permission_classes = [ModerOnly]
+    #     return super().get_permissions()
+
+    def perform_create(self, serializer):
+        serializer.save(user=self.request.user)

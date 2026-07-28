@@ -7,6 +7,7 @@ from dotenv import load_dotenv
 BASE_DIR = Path(__file__).resolve().parent.parent
 load_dotenv(BASE_DIR / '.env')
 
+GOOGLE_API_KEY = os.environ['GOOGLE_API_KEY']
 TWITCH_CLIENT_ID = os.environ['TWITCH_CLIENT_ID']
 TWITCH_CLIENT_SECRET = os.environ['TWITCH_CLIENT_SECRET']
 TWITCH_REDIRECT_URI = os.environ['TWITCH_REDIRECT_URI']

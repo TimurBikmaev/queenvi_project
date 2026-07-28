@@ -2,18 +2,12 @@ from django.contrib.auth.models import AbstractUser
 from django.core.validators import MaxValueValidator, MinValueValidator
 from django.db import models
 
-from core.mixins import CreatedAtMixin, StatusMixin, UpdatedMixin
-from user.constants import UserConstants
+from core.mixins import CreatedAtMixin, UpdatedMixin
+from user.constants import UserConstants, UserRole
 from user.utils import avatar_upload_to
 
 
-class UserRole(models.TextChoices):
-    USER = 'user', 'Пользователь'
-    MODERATOR = 'moderator', 'Модератор'
-    STREAMER = 'streamer', 'Стример'
-
-
-class User(CreatedAtMixin, UpdatedMixin, StatusMixin, AbstractUser):
+class User(CreatedAtMixin, UpdatedMixin, AbstractUser):
     twitch_id = models.CharField(
         'ID twitch-аккаунта',
         max_length=UserConstants.TWITCH_ID_MAX_LENGTH,
