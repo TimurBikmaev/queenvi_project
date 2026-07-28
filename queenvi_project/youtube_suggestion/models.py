@@ -1,40 +1,43 @@
 from django.db import models
 
-from core.mixins import CreatedAtMixin, PublicIdMixin, StatusMixin
+from core.mixins import CreatedAtMixin, PublicIdMixin
 from user.models import User
 from youtube_suggestion.constants import (
     Category, CategoryConstants,  VideoConstants
 )
 
 
-class Video(CreatedAtMixin, PublicIdMixin, StatusMixin):
+class Video(CreatedAtMixin, PublicIdMixin):
     youtube_id = models.CharField(
         'ID видео',
         max_length=VideoConstants.VIDEO_ID_MAX_LENGTH,
         unique=True
     )
-    name = models.CharField(
+    title = models.CharField(
         'Название',
         max_length=VideoConstants.NAME_MAX_LENGTH
     )
-    preview = models.CharField(
-        'Превью',
-        max_length=VideoConstants.PREVIEW_MAX_LENGTH
-    )
+    preview_url = models.URLField('Превью')
     channel_name = models.CharField(
         'Название канала',
         max_length=VideoConstants.CHANNEL_NAME_MAX_LENGTH
     )
-    duration = models.SmallIntegerField('Длительность')
     pub_date = models.DateTimeField('Дата публикации')
+    duration = models.SmallIntegerField('Длительность')
+    views_count = models.PositiveBigIntegerField('Число просмотров')
+    likes_count = models.PositiveIntegerField('Число лайков')
+    comments_count = models.PositiveIntegerField('Число комментариев')
+    is_published = models.BooleanField('Опубликовано', default=True)
     category = models.CharField(
         'Категория',
         max_length=CategoryConstants.CATEGORY_MAX_LENGTH,
         choices=Category.choices,
+        blank=True
     )
     comment = models.CharField(
         'Комментарий к видео',
-        max_length=VideoConstants.COMMENT_MAX_LENGTH
+        max_length=VideoConstants.COMMENT_MAX_LENGTH,
+        blank=True
     )
     user = models.ForeignKey(
         User,

@@ -4,7 +4,7 @@ from shutil import rmtree
 from django.conf import settings
 
 from post.constants import MediaConstants as MC, MediaType
-from post.errors import MediaValidationError
+from post.errors import MediaFormatValidationError
 
 
 class MediaUtils:
@@ -38,7 +38,7 @@ class MediaUtils:
         for idx, file in enumerate(files):
             file_type, ext = MediaUtils.file_type_revealing(file)
             if file_type is None:
-                raise MediaValidationError(ext)
+                raise MediaFormatValidationError(ext, file.name)
             media_data.append({
                 "file": file,
                 "file_type": file_type,

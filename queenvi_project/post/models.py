@@ -1,8 +1,6 @@
 from django.db import models
 
-from core.mixins import (
-    CreatedAtMixin, PublicIdMixin, StatusMixin, UpdatedMixin
-)
+from core.mixins import CreatedAtMixin, PublicIdMixin, UpdatedMixin
 from post.constants import (
     CommentConstansts,
     MediaConstants,
@@ -11,11 +9,12 @@ from post.constants import (
     ReportConstants,
     ReportStatus
 )
+from post.mixins import PostCommentStatusMixin as PCSM
 from post.utils import MediaUtils
 from user.models import User
 
 
-class Post(PublicIdMixin, CreatedAtMixin, UpdatedMixin, StatusMixin):
+class Post(PublicIdMixin, CreatedAtMixin, UpdatedMixin, PCSM):
     name = models.CharField(
         'Название',
         max_length=PostConstants.NAME_MAX_LENGTH
@@ -78,7 +77,7 @@ class Like(models.Model):
         return (f'Like id: {self.id} | post_id: {self.post_id}')
 
 
-class Comment(PublicIdMixin, CreatedAtMixin, UpdatedMixin, StatusMixin):
+class Comment(PublicIdMixin, CreatedAtMixin, UpdatedMixin, PCSM):
     text = models.TextField(
         'Текст',
         max_length=CommentConstansts.TEXT_MAX_LENGTH
@@ -144,10 +143,6 @@ class Report(PublicIdMixin):
         indexes = [
             models.Index(fields=["status"]),
         ]
-
-    def make_not_viewed(self):
-        self.status = ReportStatus.NOT_VIEWED
-        return self
 
     def make_approved(self):
         self.status = ReportStatus.APPROVED

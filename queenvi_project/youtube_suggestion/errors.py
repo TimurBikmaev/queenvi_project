@@ -1,0 +1,19 @@
+from youtube_suggestion.constants import VideoServiceConstants as VSC
+
+
+class VideoAlreadyExistsError(Exception):
+    def __init__(self, video):
+        message = "Это видео уже опубликовано в предложке:)"
+        if not video.is_published:
+            message = "Это видео уже предлагали, но модерация отклонила его:("
+        super().__init__(message)
+
+
+class VideoIdIncorrectError(Exception):
+    def __init__(self):
+        message = (
+            'В предложку можно скинуть видео только из YouTube. Ссылка на '
+            f'видео должна начинаться с \'{VSC.URL_VIDEO_YOUTUBE_1}\' '
+            f'или \'{VSC.URL_VIDEO_YOUTUBE_2}\' ^-^'
+        )
+        super().__init__(message)

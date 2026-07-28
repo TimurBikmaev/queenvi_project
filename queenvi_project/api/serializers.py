@@ -6,11 +6,15 @@ from api.mixins import AvatarSerializerMixin, BaseSerializerMixin
 from post.constants import (
     CommentConstansts, MediaConstants as MC, PostConstants, ReportConstants
 )
-from post.errors import MediaValidationError
-from post.models import Comment, Like, Media, Post, Report
+from post.errors import MediaFormatValidationError
+from post.models import Comment, Media, Post, Report
 from post.utils import MediaUtils
 from youtube_suggestion.constants import VideoConstants
+from youtube_suggestion.errors import (
+    VideoAlreadyExistsError, VideoIdIncorrectError
+)
 from youtube_suggestion.models import Video
+from youtube_suggestion.services import VideoSerivce
 
 
 User = get_user_model()
@@ -123,8 +127,8 @@ class PostSerializer(ShortPostSerializer):
     def check_media_data(self, files):
         try:
             media_data = MediaUtils.collect_media_data(files)
-        except MediaValidationError as e:
-            raise serializers.ValidationError(MC.TYPE_ERROR.format(ext=e.ext))
+        except MediaFormatValidationError as e:
+            raise serializers.ValidationError(str(e))
         return media_data
 
     def create(self, validated_data):
@@ -200,23 +204,38 @@ class VideoSerializer(BaseSerializerMixin):
     comment = serializers.CharField(
         max_length=VideoConstants.COMMENT_MAX_LENGTH
     )
-    name = serializers.CharField(
-        max_length=VideoConstants.NAME_MAX_LENGTH
-    )
-    preview = serializers.CharField(
-        max_length=VideoConstants.PREVIEW_MAX_LENGTH
-    )
-    channel_name = serializers.CharField(
-        max_length=VideoConstants.CHANNEL_NAME_MAX_LENGTH
-    )
-    user = ShortUserSerializer()
+    user = ShortUserSerializer(read_only=True)
 
     class Meta:
         model = Video
         fields = [
-            'public_id', 'youtube_url', 'user', 'name', 'preview',
-            'channel_name', 'duration', 'pub_date', 'category', 'comment'
+            'public_id', 'youtube_url', 'youtube_id', 'user', 'title',
+            'preview_url', 'channel_name', 'pub_date', 'duration',
+            'views_count', 'likes_count', 'comments_count', 'category',
+            'comment'
         ]
         read_only_fields = [
-            'user', 'name', 'preview', 'channel_name', 'duration', 'pub_date'
+            'public_id', 'youtube_id', 'title', 'preview_url', 'channel_name',
+            'pub_date', 'duration', 'views_count', 'likes_count',
+            'comments_count',
         ]
+
+    def create(self, validated_data):
+        try:
+            video = VideoSerivce.video_uploading(
+                validated_data['youtube_url'],
+                validated_data['user'],
+                category=validated_data.get('category', ''),
+                comment=validated_data.get('comment', '')
+            )
+        except (VideoAlreadyExistsError, VideoIdIncorrectError) as e:
+            raise serializers.ValidationError(str(e))
+        return video
+
+
+class ModerationVideoSerializer(VideoSerializer):
+    """Сериализатор видео для модерации."""
+
+    class Meta(VideoSerializer.Meta):
+        fields = VideoSerializer.Meta.fields + ['is_published']
+        read_only_fields = VideoSerializer.Meta.read_only_fields
