@@ -7,14 +7,14 @@ from post.constants import (
     MediaType,
     PostConstants,
     ReportConstants,
+    ReportReasonStatus,
     ReportStatus
 )
-from post.mixins import PostCommentStatusMixin as PCSM
 from post.utils import MediaUtils
 from user.models import User
 
 
-class Post(PublicIdMixin, CreatedAtMixin, UpdatedMixin, PCSM):
+class Post(PublicIdMixin, CreatedAtMixin, UpdatedMixin):
     name = models.CharField(
         'Название',
         max_length=PostConstants.NAME_MAX_LENGTH
@@ -24,7 +24,8 @@ class Post(PublicIdMixin, CreatedAtMixin, UpdatedMixin, PCSM):
         max_length=PostConstants.DESCRIPTION_MAX_LENGTH,
         blank=True
     )
-    is_for_stream = models.BooleanField('Подходит для стрима', default=True)
+    is_for_stream = models.BooleanField('Подходит ли для стрима', default=True)
+    is_banned = models.BooleanField('Забанен ли', default=False)
     user = models.ForeignKey(
         User,
         on_delete=models.CASCADE,
@@ -36,7 +37,7 @@ class Post(PublicIdMixin, CreatedAtMixin, UpdatedMixin, PCSM):
         verbose_name = 'Пост'
         verbose_name_plural = 'Посты'
         indexes = [
-            models.Index(fields=['status']),
+            models.Index(fields=['is_banned']),
             models.Index(fields=['created_at']),
             models.Index(fields=['user']),
         ]
@@ -77,7 +78,7 @@ class Like(models.Model):
         return (f'Like id: {self.id} | post_id: {self.post_id}')
 
 
-class Comment(PublicIdMixin, CreatedAtMixin, UpdatedMixin, PCSM):
+class Comment(PublicIdMixin, CreatedAtMixin, UpdatedMixin):
     text = models.TextField(
         'Текст',
         max_length=CommentConstansts.TEXT_MAX_LENGTH
@@ -107,10 +108,16 @@ class Comment(PublicIdMixin, CreatedAtMixin, UpdatedMixin, PCSM):
         return (f'Comment id: {self.id} | post_id: {self.post_id}')
 
 
-class Report(PublicIdMixin):
-    text = models.TextField(
-        'Описание причины жалобы',
+class Report(PublicIdMixin, CreatedAtMixin, UpdatedMixin):
+    reason = models.CharField(
+        'Причина жалобы',
         max_length=ReportConstants.REASON_MAX_LENGTH,
+        choices=ReportReasonStatus.choices,
+    )
+    other = models.TextField(
+        'Текстовое описание жалобы',
+        max_length=ReportConstants.OTHER_MAX_LENGTH,
+        blank=True
     )
     status = models.CharField(
         'Статус',
@@ -127,8 +134,16 @@ class Report(PublicIdMixin):
     user = models.ForeignKey(
         User,
         on_delete=models.CASCADE,
-        related_name='reported_posts',
-        verbose_name='Жалобы'
+        related_name='reports',
+        verbose_name='Отправленные жалобы'
+    )
+    moderator = models.ForeignKey(
+        User,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name="resolved_reports",
+        verbose_name='Рассмотренные жалобы'
     )
 
     class Meta:

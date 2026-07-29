@@ -1,5 +1,4 @@
 from django.contrib.auth.models import AbstractUser
-from django.core.validators import MaxValueValidator, MinValueValidator
 from django.db import models
 
 from core.mixins import CreatedAtMixin, UpdatedMixin
@@ -30,36 +29,10 @@ class User(CreatedAtMixin, UpdatedMixin, AbstractUser):
         choices=UserRole.choices,
         default=UserRole.USER,
     )
-    warnings = models.SmallIntegerField(
-        'Предупреждения',
-        default=UserConstants.NO_WARNINGS,
-        validators=[
-            MaxValueValidator(UserConstants.WARNINGS_TO_AUTOBAN),
-            MinValueValidator(UserConstants.NO_WARNINGS)
-        ],
-    )
 
     class Meta:
         verbose_name = 'Пользователь'
         verbose_name_plural = 'Пользователи'
-
-    def check_autoban(self):
-        if self.warnings >= UserConstants.WARNINGS_TO_AUTOBAN:
-            self.is_active = False
-        return self
-
-    def add_warning(self):
-        self.warnings = min(
-            self.warnings + UserConstants.ONE_WARNING,
-            UserConstants.WARNINGS_TO_AUTOBAN
-        )
-        self.check_autoban()
-        return self
-
-    def reset_warnings(self):
-        self.warnings = UserConstants.NO_WARNINGS
-        self.is_active = True
-        return self
 
     def ban(self):
         self.is_active = False
