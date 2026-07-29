@@ -33,12 +33,12 @@ class Post(PublicIdMixin, CreatedAtMixin, UpdatedMixin, PCSM):
     )
 
     class Meta:
-        verbose_name = "Пост"
-        verbose_name_plural = "Посты"
+        verbose_name = 'Пост'
+        verbose_name_plural = 'Посты'
         indexes = [
-            models.Index(fields=["status"]),
-            models.Index(fields=["created_at"]),
-            models.Index(fields=["user"]),
+            models.Index(fields=['status']),
+            models.Index(fields=['created_at']),
+            models.Index(fields=['user']),
         ]
 
     def __str__(self):
@@ -60,8 +60,8 @@ class Like(models.Model):
     )
 
     class Meta:
-        verbose_name = "Лайк"
-        verbose_name_plural = "Лайки"
+        verbose_name = 'Лайк'
+        verbose_name_plural = 'Лайки'
         constraints = [
             models.UniqueConstraint(
                 fields=['post', 'user'],
@@ -69,8 +69,8 @@ class Like(models.Model):
             )
         ]
         indexes = [
-            models.Index(fields=["post"]),
-            models.Index(fields=["user"]),
+            models.Index(fields=['post']),
+            models.Index(fields=['user']),
         ]
 
     def __str__(self):
@@ -96,11 +96,11 @@ class Comment(PublicIdMixin, CreatedAtMixin, UpdatedMixin, PCSM):
     )
 
     class Meta:
-        verbose_name = "Комментарий"
-        verbose_name_plural = "Комментарии"
+        verbose_name = 'Комментарий'
+        verbose_name_plural = 'Комментарии'
         indexes = [
-            models.Index(fields=["post"]),
-            models.Index(fields=["created_at"]),
+            models.Index(fields=['post']),
+            models.Index(fields=['created_at']),
         ]
 
     def __str__(self):
@@ -132,8 +132,8 @@ class Report(PublicIdMixin):
     )
 
     class Meta:
-        verbose_name = "Жалоба"
-        verbose_name_plural = "Жалобы"
+        verbose_name = 'Жалоба'
+        verbose_name_plural = 'Жалобы'
         constraints = [
             models.UniqueConstraint(
                 fields=['post', 'user'],
@@ -141,7 +141,7 @@ class Report(PublicIdMixin):
             )
         ]
         indexes = [
-            models.Index(fields=["status"]),
+            models.Index(fields=['status']),
         ]
 
     def make_approved(self):
@@ -184,5 +184,5 @@ class Media(CreatedAtMixin):
     order = models.PositiveSmallIntegerField()
 
     class Meta:
-        verbose_name = "Медиа"
-        verbose_name_plural = "Медиа"
+        verbose_name = 'Медиа'
+        verbose_name_plural = 'Медиа'

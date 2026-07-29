@@ -40,8 +40,8 @@ class User(CreatedAtMixin, UpdatedMixin, AbstractUser):
     )
 
     class Meta:
-        verbose_name = "Пользователь"
-        verbose_name_plural = "Пользователи"
+        verbose_name = 'Пользователь'
+        verbose_name_plural = 'Пользователи'
 
     def check_autoban(self):
         if self.warnings >= UserConstants.WARNINGS_TO_AUTOBAN:

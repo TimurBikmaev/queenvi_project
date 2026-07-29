@@ -142,7 +142,7 @@ class PostSerializer(ShortPostSerializer):
         return post
 
     def update(self, instance, validated_data):
-        files = validated_data.pop("create_media", None)
+        files = validated_data.pop('create_media', None)
         if files is not None:
             media_data = self.check_media_data(files)
             instance.media.all().delete()

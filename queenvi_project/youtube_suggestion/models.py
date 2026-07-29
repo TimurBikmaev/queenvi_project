@@ -47,10 +47,10 @@ class Video(CreatedAtMixin, PublicIdMixin):
     )
 
     class Meta:
-        verbose_name = "Видео"
-        verbose_name_plural = "Видео"
+        verbose_name = 'Видео'
+        verbose_name_plural = 'Видео'
         indexes = [
-            models.Index(fields=["category"]),
+            models.Index(fields=['category']),
         ]
 
     def __str__(self):
@@ -72,8 +72,8 @@ class Voting(models.Model):
     )
 
     class Meta:
-        verbose_name = "Голос"
-        verbose_name_plural = "Голоса"
+        verbose_name = 'Голос'
+        verbose_name_plural = 'Голоса'
         constraints = [
             models.UniqueConstraint(
                 fields=['video', 'user'],
@@ -81,8 +81,8 @@ class Voting(models.Model):
             )
         ]
         indexes = [
-            models.Index(fields=["video"]),
-            models.Index(fields=["user"]),
+            models.Index(fields=['video']),
+            models.Index(fields=['user']),
         ]
 
     def __str__(self):

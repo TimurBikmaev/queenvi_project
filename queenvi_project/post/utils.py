@@ -12,7 +12,7 @@ class MediaUtils:
         """Переименование файлов и создание медиа-катлогов постов."""
         ext = Path(filename).suffix
         filename = f'{instance.order}_{instance.file_type}'
-        return f"posts/{instance.post.public_id}/{filename}{ext}"
+        return f'posts/{instance.post.public_id}/{filename}{ext}'
 
     def del_media_catalog(public_id):
         """Удаление медиа-каталога поста с файлами."""
@@ -40,8 +40,8 @@ class MediaUtils:
             if file_type is None:
                 raise MediaFormatValidationError(ext, file.name)
             media_data.append({
-                "file": file,
-                "file_type": file_type,
-                "order": idx
+                'file': file,
+                'file_type': file_type,
+                'order': idx
             })
         return media_data

@@ -24,10 +24,10 @@ class VideoServiceConstants:
     FORMAT_DURATION = r'PT(?:(\d+)H)?(?:(\d+)M)?(?:(\d+)S)?'
     IDX_VIDEO_DATA = 0
     NO_TIME = 0
-    PART = "snippet,statistics,contentDetails"
+    PART = 'snippet,statistics,contentDetails'
     RESOLUTIONS = 'maxres', 'standard', 'high', 'medium', 'default'
     SEC_FROM_HOURS = 3600
     SEC_FROM_MINUTS = 60
-    URL_GET_VIDEO_DATA = "https://www.googleapis.com/youtube/v3/videos"
+    URL_GET_VIDEO_DATA = 'https://www.googleapis.com/youtube/v3/videos'
     URL_VIDEO_YOUTUBE_1 = 'https://www.youtube.com/watch?v='
     URL_VIDEO_YOUTUBE_2 = 'https://youtu.be/'
