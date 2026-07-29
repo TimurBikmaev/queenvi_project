@@ -1,16 +1,6 @@
 from django.db.models import TextChoices
 
 
-class PostCommentStatus(TextChoices):
-    VISIBLE = 'visible', 'Виден всем'
-    HIDDEN = 'hidden', 'Спрятан от всех и ждет модерации'
-    BANNED = 'banned', 'Заблокирован модератором'
-
-
-class PostCommentStatusConstants:
-    MAX_LENGTH = 20
-
-
 class PostConstants:
     DESCRIPTION_MAX_LENGTH = 1000
     NAME_MAX_LENGTH = 100
@@ -26,9 +16,25 @@ class ReportStatus(TextChoices):
     REJECTED = 'rejected', 'Отменена'
 
 
+class ReportReasonStatus(TextChoices):
+    ADULT = 'adult', 'Контент для взрослых [18+]'
+    ILLEGAL = 'illegal', 'Незаконный'
+    ADVERTISING = 'advertising', 'Реклама'
+    SPAM = 'spam', 'Спам'
+    OTHER = 'other', 'Другое'
+
+
 class ReportConstants:
-    REASON_MAX_LENGTH = 700
-    REASON_MIN_LENGTH = 100
+    MSG_CREATED = (
+        'Жалоба на пост {public_id} отправлена! Модерация ее проверит и при '
+        'обнаружении нарушения примет меры. Спасибо, что делаешь сообщество '
+        'дружелюбнее :)'
+    )
+    MSG_STATUS_TO_NOT_VIEWED = (
+        'Если репорт рассмотрен, то его нельзя определить нерассмотренным!'
+    )
+    OTHER_MAX_LENGTH = 700
+    REASON_MAX_LENGTH = 20
     STATUS_MAX_LENGTH = 20
 
 

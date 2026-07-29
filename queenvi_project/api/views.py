@@ -15,9 +15,11 @@ from rest_framework.viewsets import GenericViewSet, ModelViewSet
 from api import serializers
 from api.mixins import HttpLookupMixin
 from core.constants import PublicIdConstants
-from post.constants import MediaConstants as MC, PostCommentStatus
+from post.constants import MediaConstants as MC
+from post.errors import UserCanReportError
 from post.models import Comment, Like, Media, Post, Report
 from post.utils import MediaUtils
+from post.validators import can_user_report_post
 from user.errors import StateValidationError
 from user.permissions import IsOwner
 from user.services import TwitchLoginService
@@ -37,19 +39,14 @@ class UserViewSet(HttpLookupMixin, mixins.RetrieveModelMixin, GenericViewSet):
         return User.objects.annotate(
             posts_count=Count(
                 'posts',
-                filter=Q(posts__status=PostCommentStatus.VISIBLE),
+                filter=Q(posts__is_banned=False),
             )
         ).prefetch_related(
             Prefetch(
                 'posts',
-                queryset=Post.objects.filter(
-                    status=PostCommentStatus.VISIBLE
-                ).annotate(
+                queryset=Post.objects.filter(is_banned=False).annotate(
                     likes_count=Count('likes'),
-                    comments_count=Count(
-                        'comments',
-                        filter=Q(comments__status=PostCommentStatus.VISIBLE)
-                    )
+                    comments_count=Count('comments')
                 ),
                 to_attr='visible_posts',
             )
@@ -116,6 +113,8 @@ class PostViewSet(HttpLookupMixin, ModelViewSet):
     def get_serializer_class(self):
         if self.action == 'list':
             return serializers.ShortPostSerializer
+        elif self.action == 'reports':
+            return serializers.CreateReportSerializer
         return serializers.PostSerializer
 
     def get_queryset(self):
@@ -162,6 +161,22 @@ class PostViewSet(HttpLookupMixin, ModelViewSet):
         serializer = self.get_serializer(post)
         return Response(serializer.data, HTTPStatus.OK)
 
+    @action(
+        detail=True,
+        methods=['post'],
+        permission_classes=[IsAuthenticated]
+    )
+    def reports(self, request, public_id=None):
+        post = self.get_object()
+        try:
+            can_user_report_post(request.user, post)
+        except UserCanReportError as e:
+            raise ValidationError(str(e))
+        serializer = self.get_serializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+        serializer.save(post=post, user=request.user)
+        return Response(serializer.data, HTTPStatus.CREATED)
+
 
 class CommentViewSet(
     HttpLookupMixin,
@@ -174,7 +189,6 @@ class CommentViewSet(
     queryset = Comment.objects.all()
     serializer_class = serializers.CommentSerializer
     lookup_value_regex = PublicIdConstants.URL_REGEX
-    permission_classes = [IsAuthenticatedOrReadOnly]
 
     def get_permissions(self):
         if self.action in ('partial_update', 'destroy'):
@@ -186,29 +200,26 @@ class CommentViewSet(
         serializer.save(user=self.request.user, post=post)
 
 
-class ReportViewSet(ModelViewSet):
-    queryset = Report.objects.all()
-    serializer_class = serializers.ReportSerializer
-    http_method_names = ['get', 'post', 'patch']
-    lookup_field = 'public_id'
-
-
-class VideoViewSet(
-        HttpLookupMixin,
-        mixins.ListModelMixin,
-        mixins.CreateModelMixin,
-        mixins.UpdateModelMixin,
-        GenericViewSet
+class ReportViewSet(
+    HttpLookupMixin,
+    mixins.ListModelMixin,
+    mixins.UpdateModelMixin,
+    GenericViewSet
 ):
+    queryset = Report.objects.all()
+    serializer_class = serializers.ModerationReportSerializer
+    http_method_names = ['get', 'patch']
+    # permission_classes = [IsModer]
+
+
+class VideoViewSet(HttpLookupMixin, ModelViewSet):
     queryset = Video.objects.all()
     serializer_class = serializers.VideoSerializer
-    permission_classes = [IsAuthenticatedOrReadOnly]
-    http_method_names = ['get', 'post', 'patch']
 
-    # def get_permissions(self):
-    #     if self.action == 'PATCH':
-    #         self.permission_classes = [ModerOnly]
-    #     return super().get_permissions()
+    def get_permissions(self):
+        if self.action == 'destroy':
+            return [IsOwner()]
+        return [IsAuthenticatedOrReadOnly()]
 
     def perform_create(self, serializer):
         serializer.save(user=self.request.user)

@@ -4,7 +4,11 @@ from rest_framework import serializers
 from api.constants import SerializersConstants
 from api.mixins import AvatarSerializerMixin, BaseSerializerMixin
 from post.constants import (
-    CommentConstansts, MediaConstants as MC, PostConstants, ReportConstants
+    CommentConstansts,
+    MediaConstants as MC,
+    PostConstants,
+    ReportConstants,
+    ReportStatus
 )
 from post.errors import MediaFormatValidationError
 from post.models import Comment, Media, Post, Report
@@ -155,10 +159,10 @@ class PostSerializer(ShortPostSerializer):
             return instance
 
 
-class ModerationPostSerializer(PostSerializer):
-    """Отображение и редактирования поста для модератора."""
-    class Meta(PostSerializer.Meta):
-        fields = PostSerializer.Meta.fields + ['status']
+# class ModerationPostSerializer(PostSerializer):
+#     """Отображение и редактирования поста для модератора."""
+#     class Meta(PostSerializer.Meta):
+#         fields = PostSerializer.Meta.fields + ['status']
 
 
 class UserSerializer(AvatarSerializerMixin, BaseSerializerMixin):
@@ -186,16 +190,73 @@ class ModerationUserSerializer(UserSerializer):
         read_only_fields = ['username', 'twitch_avatar', 'custom_avatar']
 
 
-class ReportSerializer(BaseSerializerMixin):
+class CreateReportSerializer(BaseSerializerMixin):
     """Сериализатор жалобы."""
-    text = serializers.CharField(
-        max_length=ReportConstants.REASON_MAX_LENGTH,
+    other = serializers.CharField(
+        max_length=ReportConstants.OTHER_MAX_LENGTH,
+        required=False,
+        allow_blank=True
     )
 
     class Meta:
         model = Report
-        fields = ['public_id', 'text', 'user', 'post', 'created_at']
+        fields = ['reason', 'other', 'user', 'post']
         read_only_fields = ['user', 'post']
+
+    def to_representation(self, obj):
+        """При создании жалобы юзера прост возвращается сообщение."""
+        return {
+            'message': ReportConstants.MSG_CREATED.format(
+                public_id=obj.public_id
+            )
+        }
+
+
+class ModerationReportSerializer(BaseSerializerMixin):
+    """Сериализатор жалобы для модерации."""
+    user = serializers.SerializerMethodField(read_only=True)
+    post = serializers.SerializerMethodField(read_only=True)
+    moderator = serializers.SerializerMethodField(read_only=True)
+
+    class Meta(CreateReportSerializer.Meta):
+        fields = CreateReportSerializer.Meta.fields + [
+            'public_id', 'status', 'moderator'
+        ]
+        read_only_fields = CreateReportSerializer.Meta.fields + [
+            'public_id', 'moderator'
+        ]
+
+    def update(self, instance, validated_data):
+        status = validated_data.get('status')
+        instance = super().update(instance, validated_data)
+        if status == ReportStatus.APPROVED:
+            instance.post.is_banned = True
+            instance.post.save(update_fields=['is_banned'])
+        elif status == ReportStatus.REJECTED:
+            instance.post.is_banned = False
+            instance.post.save(update_fields=['is_banned'])
+        return instance
+
+    def get_user(self, obj):
+        """Возвращаем юзернейм того, кто кинул репорт."""
+        return obj.user.username
+
+    def get_post(self, obj):
+        """Возвращаем public_id поста, который зарепортили."""
+        return obj.post.public_id
+
+    def get_moderator(self, obj):
+        """Возвращаем юзернейм модератора, который рассмотрел репорт."""
+        if obj.moderator is not None:
+            return obj.moderator.username
+
+    def validate_status(self, value):
+        """Если репорт рассмотрен, то поменять статус на not_viewed нельзя."""
+        if value == ReportStatus.NOT_VIEWED:
+            raise serializers.ValidationError(
+                ReportConstants.MSG_STATUS_TO_NOT_VIEWED
+            )
+        return value
 
 
 class VideoSerializer(BaseSerializerMixin):
@@ -237,5 +298,5 @@ class ModerationVideoSerializer(VideoSerializer):
     """Сериализатор видео для модерации."""
 
     class Meta(VideoSerializer.Meta):
-        fields = VideoSerializer.Meta.fields + ['is_published']
+        fields = VideoSerializer.Meta.fields + ['is_banned']
         read_only_fields = VideoSerializer.Meta.read_only_fields
