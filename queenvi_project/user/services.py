@@ -16,18 +16,18 @@ class TwitchLoginService:
     def get_login_url(request):
         """Формирование урла для аутентификации."""
         state = secrets.token_urlsafe(TwitchLoginConstants.LENGTH_STATE)
-        request.session["oauth_state"] = state
+        request.session['oauth_state'] = state
         params = {
-            "client_id": settings.TWITCH_CLIENT_ID,
-            "redirect_uri": settings.TWITCH_REDIRECT_URI,
-            "response_type": TwitchLoginConstants.TYPE_RESPONSE,
-            "state": state,
+            'client_id': settings.TWITCH_CLIENT_ID,
+            'redirect_uri': settings.TWITCH_REDIRECT_URI,
+            'response_type': TwitchLoginConstants.TYPE_RESPONSE,
+            'state': state,
         }
         return TwitchLoginConstants.URL_AUTH + urlencode(params)
 
     @staticmethod
     def authenticate(request):
-        "Оркестрация аутентификации."
+        """Оркестрация аутентификации."""
         TwitchLoginService.check_state(request)
         access_token = TwitchLoginService.get_access_token(request)
         user_data = TwitchLoginService.get_user_data(access_token)
@@ -37,7 +37,7 @@ class TwitchLoginService:
     def check_state(request):
         """Проверка, что логин и коллбэк односятся к одной сессии."""
         received_state = request.GET.get('state')
-        saved_state = request.session.pop("oauth_state", None)
+        saved_state = request.session.pop('oauth_state', None)
         if received_state != saved_state:
             raise StateValidationError()
 
@@ -58,7 +58,7 @@ class TwitchLoginService:
         )
         response.raise_for_status()
         data = response.json()
-        return f'Bearer {data.get("access_token")}'
+        return f'Bearer {data.get('access_token')}'
 
     @staticmethod
     def get_user_data(access_token):
@@ -86,7 +86,7 @@ class TwitchLoginService:
         )
         if created:
             user.set_unusable_password()
-            user.save(update_fields=["password"])
+            user.save(update_fields=['password'])
         else:
             user.username = data['display_name']
             user.twitch_avatar = data['profile_image_url']
