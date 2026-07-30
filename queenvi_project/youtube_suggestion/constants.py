@@ -4,6 +4,7 @@ from django.db.models import TextChoices
 class VideoConstants:
     CHANNEL_NAME_MAX_LENGTH = 100
     COMMENT_MAX_LENGTH = 50
+    MSG_CANNOT_CHANGE_BANNED = 'Нельзя изменить забаненное видео :('
     NAME_MAX_LENGTH = 100
     VIDEO_ID_MAX_LENGTH = 11
 

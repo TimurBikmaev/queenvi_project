@@ -42,9 +42,17 @@ class User(CreatedAtMixin, UpdatedMixin, AbstractUser):
         self.is_active = True
         return self
 
+    def make_user(self):
+        self.role = UserRole.USER
+        return self
+
     def make_moderator(self):
         self.role = UserRole.MODERATOR
         return self
+
+    @property
+    def is_user(self):
+        return self.role == UserRole.USER
 
     @property
     def is_moderator(self):
