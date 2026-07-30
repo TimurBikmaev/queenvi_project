@@ -4,8 +4,11 @@ from youtube_suggestion.constants import VideoServiceConstants as VSC
 class VideoAlreadyExistsError(Exception):
     def __init__(self, video):
         message = 'Это видео уже опубликовано в предложке:)'
-        if not video.is_published:
-            message = 'Это видео уже предлагали, но модерация отклонила его:('
+        if video.is_banned:
+            message = (
+                'Это видео уже предлагали, но его уже посмотрели на стриме '
+                'или модерация отклонила его :('
+            )
         super().__init__(message)
 
 

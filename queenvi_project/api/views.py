@@ -19,21 +19,36 @@ from post.constants import MediaConstants as MC
 from post.errors import UserCanReportError
 from post.models import Comment, Like, Media, Post, Report
 from post.utils import MediaUtils
-from post.validators import can_user_report_post
+from post.validators import ReportValidator
 from user.errors import StateValidationError
-from user.permissions import IsOwner
+from user.permissions import IsModerOrStreamer, IsOwner
 from user.services import TwitchLoginService
-from youtube_suggestion.models import Video
+from youtube_suggestion.models import Video, Voting
 
 
 User = get_user_model()
 
 
-class UserViewSet(HttpLookupMixin, mixins.RetrieveModelMixin, GenericViewSet):
+class UserViewSet(
+    HttpLookupMixin,
+    mixins.RetrieveModelMixin,
+    mixins.UpdateModelMixin,
+    GenericViewSet
+):
     queryset = User.objects.all()
-    serializer_class = serializers.UserSerializer
     lookup_field = 'username'
     permission_classes = [AllowAny]
+
+    def get_permissions(self):
+        if self.action == 'partial_update':
+            return [IsModerOrStreamer()]
+        return super().get_permissions()
+
+    def get_serializer_class(self):
+        user = self.request.user
+        if user.is_authenticated and not user.is_user:
+            return serializers.ModerationSteamerProfileSerializer
+        return serializers.ProfileSerializer
 
     def get_queryset(self):
         return User.objects.annotate(
@@ -44,9 +59,17 @@ class UserViewSet(HttpLookupMixin, mixins.RetrieveModelMixin, GenericViewSet):
         ).prefetch_related(
             Prefetch(
                 'posts',
-                queryset=Post.objects.filter(is_banned=False).annotate(
+                queryset=Post.objects.filter(is_banned=False)
+                .annotate(
                     likes_count=Count('likes'),
                     comments_count=Count('comments')
+                )
+                .prefetch_related(
+                    Prefetch(
+                        'media',
+                        queryset=Media.objects.filter(order=MC.PREVIEW_ORDER),
+                        to_attr='preview_media'
+                    )
                 ),
                 to_attr='visible_posts',
             )
@@ -61,7 +84,7 @@ class UserViewSet(HttpLookupMixin, mixins.RetrieveModelMixin, GenericViewSet):
         try:
             user = TwitchLoginService.authenticate(request)
         except StateValidationError as e:
-            raise ValidationError(e.message)
+            raise ValidationError(e.msg)
         login(request, user)
         return redirect('profile-detail', username=user.username)
 
@@ -93,7 +116,7 @@ class UserViewSet(HttpLookupMixin, mixins.RetrieveModelMixin, GenericViewSet):
             serializer = self.get_serializer(user)
             return Response(serializer.data, HTTPStatus.OK)
 
-        serializer = self.get_serializer(
+        serializer = serializers.AvatarProfileSerializer(
             user,
             data=request.data,
             partial=True
@@ -102,6 +125,7 @@ class UserViewSet(HttpLookupMixin, mixins.RetrieveModelMixin, GenericViewSet):
         if 'custom_avatar' in serializer.validated_data and user.custom_avatar:
             user.custom_avatar.delete(save=False)
         serializer.save()
+        serializer = self.get_serializer(user)
         return Response(serializer.data, HTTPStatus.OK)
 
 
@@ -110,7 +134,21 @@ class PostViewSet(HttpLookupMixin, ModelViewSet):
     serializer_class = serializers.PostSerializer
     permission_classes = [IsAuthenticatedOrReadOnly, IsOwner]
 
+    def get_permissions(self):
+        user = self.request.user
+        if user.is_authenticated and not user.is_user:
+            if self.action == 'partial_update':
+                return [IsAuthenticated(), IsModerOrStreamer()]
+        return super().get_permissions()
+
     def get_serializer_class(self):
+        user = self.request.user
+        if user.is_authenticated and not user.is_user:
+            if self.action == 'list':
+                return serializers.ModerationShortPostSerializer
+            elif self.action in ('retrieve' 'patch'):
+                return serializers.ModerationPostSerializer
+
         if self.action == 'list':
             return serializers.ShortPostSerializer
         elif self.action == 'reports':
@@ -169,7 +207,7 @@ class PostViewSet(HttpLookupMixin, ModelViewSet):
     def reports(self, request, public_id=None):
         post = self.get_object()
         try:
-            can_user_report_post(request.user, post)
+            ReportValidator.check_report(request.user, post)
         except UserCanReportError as e:
             raise ValidationError(str(e))
         serializer = self.get_serializer(data=request.data)
@@ -209,17 +247,55 @@ class ReportViewSet(
     queryset = Report.objects.all()
     serializer_class = serializers.ModerationReportSerializer
     http_method_names = ['get', 'patch']
-    # permission_classes = [IsModer]
+    permission_classes = [IsModerOrStreamer]
 
 
-class VideoViewSet(HttpLookupMixin, ModelViewSet):
+class VideoViewSet(
+    HttpLookupMixin,
+    mixins.ListModelMixin,
+    mixins.CreateModelMixin,
+    mixins.UpdateModelMixin,
+    GenericViewSet
+):
     queryset = Video.objects.all()
-    serializer_class = serializers.VideoSerializer
+
+    def get_serializer_class(self):
+        user = self.request.user
+        if user.is_authenticated and not user.is_user:
+            if self.action in ('list', 'partial_update'):
+                return serializers.ModerationVideoSerializer
+        return serializers.VideoSerializer
 
     def get_permissions(self):
-        if self.action == 'destroy':
-            return [IsOwner()]
+        if self.action == 'partial_update' and self.request.user.is_user:
+            return [IsAuthenticated(), IsOwner()]
         return [IsAuthenticatedOrReadOnly()]
+
+    def get_queryset(self):
+        return Video.objects.filter(is_banned=False).annotate(
+            is_voted=Exists(
+                Voting.objects.filter(
+                    video=OuterRef('pk'),
+                    user=self.request.user
+                )
+            ),
+            votings_count=Count('votes')
+        )
 
     def perform_create(self, serializer):
         serializer.save(user=self.request.user)
+
+    @action(
+        detail=True,
+        methods=['post', 'delete'],
+        permission_classes=[IsAuthenticated]
+    )
+    def voting(self, request, public_id=None):
+        video = self.get_object()
+        if request.method == 'POST':
+            Voting.objects.get_or_create(video=video, user=request.user)
+        else:
+            Voting.objects.filter(video=video, user=request.user).delete()
+        video = self.get_queryset().get(public_id=public_id)
+        serializer = self.get_serializer(video)
+        return Response(serializer.data, HTTPStatus.OK)

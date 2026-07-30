@@ -8,3 +8,13 @@ class IsOwner(BasePermission):
         if request.method in SAFE_METHODS:
             return True
         return obj.user == request.user
+
+
+class IsModerOrStreamer(BasePermission):
+    """Доступ разрешен только модератору или стримеру."""
+
+    def has_permission(self, request, view):
+        return (
+            request.user.is_authenticated
+            and (request.user.is_moderator or request.user.is_streamer)
+        )

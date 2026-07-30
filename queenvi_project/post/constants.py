@@ -25,6 +25,9 @@ class ReportReasonStatus(TextChoices):
 
 
 class ReportConstants:
+    MSG_CANNOT_REPORT_STAFF = (
+        'Нельзя пожаловаться на пост модера или стримера -_-'
+    )
     MSG_CREATED = (
         'Жалоба на пост {public_id} отправлена! Модерация ее проверит и при '
         'обнаружении нарушения примет меры. Спасибо, что делаешь сообщество '

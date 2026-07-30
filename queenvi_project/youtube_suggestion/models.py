@@ -1,13 +1,13 @@
 from django.db import models
 
-from core.mixins import CreatedAtMixin, PublicIdMixin
+from core.mixins import CreatedAtMixin, PublicIdMixin, UpdatedMixin
 from user.models import User
 from youtube_suggestion.constants import (
     Category, CategoryConstants,  VideoConstants
 )
 
 
-class Video(CreatedAtMixin, PublicIdMixin):
+class Video(CreatedAtMixin, UpdatedMixin, PublicIdMixin):
     youtube_id = models.CharField(
         'ID видео',
         max_length=VideoConstants.VIDEO_ID_MAX_LENGTH,
@@ -27,7 +27,7 @@ class Video(CreatedAtMixin, PublicIdMixin):
     views_count = models.PositiveBigIntegerField('Число просмотров')
     likes_count = models.PositiveIntegerField('Число лайков')
     comments_count = models.PositiveIntegerField('Число комментариев')
-    is_published = models.BooleanField('Опубликовано', default=True)
+    is_banned = models.BooleanField('Забанено ли', default=False)
     category = models.CharField(
         'Категория',
         max_length=CategoryConstants.CATEGORY_MAX_LENGTH,
