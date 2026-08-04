@@ -2,9 +2,18 @@ from pathlib import Path
 from shutil import rmtree
 
 from django.conf import settings
+from django.utils import timezone
 
 from post.constants import MediaConstants as MC, MediaType
 from post.errors import MediaFormatValidationError
+
+
+class FilterUtils:
+    def post_queryset(queryset, now, days):
+        """Возвращает queryset с фильтром по дате создания поста."""
+        return queryset.filter(
+            created_at__gte=now - timezone.timedelta(days=days)
+        )
 
 
 class MediaUtils:

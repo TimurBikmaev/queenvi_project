@@ -53,3 +53,13 @@ class MediaConstants:
     FORMAT_VIDEO = ['.mp4']
     PREVIEW_ORDER = 0
     TYPE_MAX_LENGTH = 20
+
+
+class FilterConstants:
+    DAYS_IN_MONTH = 30
+    DAYS_IN_WEEK = 7
+    DAYS_IN_YEAR = 365
+    START_DAY_HOUR = 0
+    START_DAY_MINUTE = 0
+    START_DAY_SECOND = 0
+    START_DAY_MICROSECOND = 0

@@ -3,20 +3,18 @@ from http import HTTPStatus
 from django.contrib.auth import get_user_model, login, logout
 from django.db.models import Count, Exists, OuterRef, Prefetch, Q
 from django.shortcuts import get_object_or_404, redirect
-from rest_framework import mixins
+from rest_framework import mixins, permissions as perm
 from rest_framework.decorators import action
 from rest_framework.exceptions import ValidationError
-from rest_framework.permissions import (
-    AllowAny, IsAuthenticated, IsAuthenticatedOrReadOnly
-)
 from rest_framework.response import Response
 from rest_framework.viewsets import GenericViewSet, ModelViewSet
 
 from api import serializers
-from api.mixins import HttpLookupMixin
+from api.mixins import FilterMixin, HttpLookupMixin, ListUpdateMixin
 from core.constants import PublicIdConstants
 from post.constants import MediaConstants as MC
 from post.errors import UserCanReportError
+from post.filters import ModerationPostFilter, PostFilter
 from post.models import Comment, Like, Media, Post, Report
 from post.utils import MediaUtils
 from post.validators import ReportValidator
@@ -37,12 +35,11 @@ class UserViewSet(
 ):
     queryset = User.objects.all()
     lookup_field = 'username'
-    permission_classes = [AllowAny]
 
     def get_permissions(self):
         if self.action == 'partial_update':
             return [IsModerOrStreamer()]
-        return super().get_permissions()
+        return [perm.AllowAny()]
 
     def get_serializer_class(self):
         user = self.request.user
@@ -91,7 +88,7 @@ class UserViewSet(
     @action(
         detail=False,
         methods=['post'],
-        permission_classes=[IsAuthenticated]
+        permission_classes=[perm.IsAuthenticated]
     )
     def logout(self, request):
         logout(request)
@@ -100,7 +97,7 @@ class UserViewSet(
     @action(
         detail=False,
         methods=['patch', 'delete'],
-        permission_classes=[IsAuthenticated]
+        permission_classes=[perm.IsAuthenticated]
     )
     def avatar(self, request):
         user = self.get_queryset().get(pk=request.user.pk)
@@ -129,24 +126,23 @@ class UserViewSet(
         return Response(serializer.data, HTTPStatus.OK)
 
 
-class PostViewSet(HttpLookupMixin, ModelViewSet):
+class PostViewSet(HttpLookupMixin, FilterMixin, ModelViewSet):
     queryset = Post.objects.all()
-    serializer_class = serializers.PostSerializer
-    permission_classes = [IsAuthenticatedOrReadOnly, IsOwner]
+    ordering_fields = ['likes_count', 'comments_count']
 
     def get_permissions(self):
         user = self.request.user
         if user.is_authenticated and not user.is_user:
             if self.action == 'partial_update':
-                return [IsAuthenticated(), IsModerOrStreamer()]
-        return super().get_permissions()
+                return [perm.IsAuthenticated(), IsModerOrStreamer()]
+        return [perm.IsAuthenticatedOrReadOnly(), IsOwner()]
 
     def get_serializer_class(self):
         user = self.request.user
         if user.is_authenticated and not user.is_user:
             if self.action == 'list':
                 return serializers.ModerationShortPostSerializer
-            elif self.action in ('retrieve' 'patch'):
+            elif self.action in ('retrieve', 'partial_update'):
                 return serializers.ModerationPostSerializer
 
         if self.action == 'list':
@@ -175,6 +171,12 @@ class PostViewSet(HttpLookupMixin, ModelViewSet):
             ))
         return queryset
 
+    def get_filterset_class(self):
+        user = self.request.user
+        if user.is_authenticated and not user.is_user:
+            return ModerationPostFilter
+        return PostFilter
+
     def perform_create(self, serializer):
         serializer.save(user=self.request.user)
 
@@ -187,7 +189,7 @@ class PostViewSet(HttpLookupMixin, ModelViewSet):
     @action(
         detail=True,
         methods=['post', 'delete'],
-        permission_classes=[IsAuthenticated]
+        permission_classes=[perm.IsAuthenticated]
     )
     def like(self, request, public_id=None):
         post = self.get_object()
@@ -202,7 +204,7 @@ class PostViewSet(HttpLookupMixin, ModelViewSet):
     @action(
         detail=True,
         methods=['post'],
-        permission_classes=[IsAuthenticated]
+        permission_classes=[perm.IsAuthenticated]
     )
     def reports(self, request, public_id=None):
         post = self.get_object()
@@ -218,9 +220,8 @@ class PostViewSet(HttpLookupMixin, ModelViewSet):
 
 class CommentViewSet(
     HttpLookupMixin,
-    mixins.ListModelMixin,
+    ListUpdateMixin,
     mixins.CreateModelMixin,
-    mixins.UpdateModelMixin,
     mixins.DestroyModelMixin,
     GenericViewSet
 ):
@@ -231,7 +232,7 @@ class CommentViewSet(
     def get_permissions(self):
         if self.action in ('partial_update', 'destroy'):
             return [IsOwner()]
-        return [IsAuthenticatedOrReadOnly()]
+        return [perm.IsAuthenticatedOrReadOnly()]
 
     def perform_create(self, serializer):
         post = get_object_or_404(Post, public_id=self.kwargs['post_id'])
@@ -240,24 +241,27 @@ class CommentViewSet(
 
 class ReportViewSet(
     HttpLookupMixin,
-    mixins.ListModelMixin,
-    mixins.UpdateModelMixin,
+    FilterMixin,
+    ListUpdateMixin,
     GenericViewSet
 ):
     queryset = Report.objects.all()
     serializer_class = serializers.ModerationReportSerializer
     http_method_names = ['get', 'patch']
     permission_classes = [IsModerOrStreamer]
+    filterset_fields = ['status']
+    ordering_fields = ['created_at']
 
 
 class VideoViewSet(
     HttpLookupMixin,
-    mixins.ListModelMixin,
+    FilterMixin,
+    ListUpdateMixin,
     mixins.CreateModelMixin,
-    mixins.UpdateModelMixin,
     GenericViewSet
 ):
     queryset = Video.objects.all()
+    ordering_fields = ['votings_count']
 
     def get_serializer_class(self):
         user = self.request.user
@@ -268,8 +272,8 @@ class VideoViewSet(
 
     def get_permissions(self):
         if self.action == 'partial_update' and self.request.user.is_user:
-            return [IsAuthenticated(), IsOwner()]
-        return [IsAuthenticatedOrReadOnly()]
+            return [perm.IsAuthenticated(), IsOwner()]
+        return [perm.IsAuthenticatedOrReadOnly()]
 
     def get_queryset(self):
         return Video.objects.filter(is_banned=False).annotate(
@@ -282,13 +286,19 @@ class VideoViewSet(
             votings_count=Count('votes')
         )
 
+    def get_filterset_fields(self):
+        user = self.request.user
+        if user.is_authenticated and not user.is_user:
+            return ['category', 'is_banned']
+        return ['category']
+
     def perform_create(self, serializer):
         serializer.save(user=self.request.user)
 
     @action(
         detail=True,
         methods=['post', 'delete'],
-        permission_classes=[IsAuthenticated]
+        permission_classes=[perm.IsAuthenticated]
     )
     def voting(self, request, public_id=None):
         video = self.get_object()
