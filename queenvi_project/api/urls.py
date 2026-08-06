@@ -17,4 +17,7 @@ router_v1.register('reports', views.ReportViewSet, basename='reports')
 router_v1.register('videos', views.VideoViewSet, basename='videos')
 
 
-urlpatterns = [path('v1/', include(router_v1.urls))]
+urlpatterns = [
+    path('v1/', include(router_v1.urls)),
+    path('v1/search/', views.SearchView.as_view(), name='search')
+]

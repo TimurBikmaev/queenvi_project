@@ -1,20 +1,24 @@
 from http import HTTPStatus
 
 from django.contrib.auth import get_user_model, login, logout
-from django.db.models import Count, Exists, OuterRef, Prefetch, Q
+from django.db.models import Count, Exists, OuterRef, Prefetch, Q, Value
 from django.shortcuts import get_object_or_404, redirect
+from django_filters.rest_framework import DjangoFilterBackend
 from rest_framework import mixins, permissions as perm
 from rest_framework.decorators import action
 from rest_framework.exceptions import ValidationError
+from rest_framework.filters import OrderingFilter
 from rest_framework.response import Response
+from rest_framework.views import APIView
 from rest_framework.viewsets import GenericViewSet, ModelViewSet
 
 from api import serializers
-from api.mixins import FilterMixin, HttpLookupMixin, ListUpdateMixin
+from api.mixins import HttpLookupMixin, ListUpdateMixin
 from core.constants import PublicIdConstants
+from core.utils import get_queryset_by_filter_is_banned
 from post.constants import MediaConstants as MC
 from post.errors import UserCanReportError
-from post.filters import ModerationPostFilter, PostFilter
+from post.filters import PostFilter
 from post.models import Comment, Like, Media, Post, Report
 from post.utils import MediaUtils
 from post.validators import ReportValidator
@@ -44,24 +48,31 @@ class UserViewSet(
     def get_serializer_class(self):
         user = self.request.user
         if user.is_authenticated and not user.is_user:
-            return serializers.ModerationSteamerProfileSerializer
+            return serializers.ModerationProfileSerializer
         return serializers.ProfileSerializer
 
     def get_queryset(self):
-        return User.objects.annotate(
+        """В профиле юзера обычные юзеры видят только незабаненные посты,
+        модераторы и стримеры видят любые посты по параметру."""
+        user = self.request.user
+        if user.is_authenticated and not user.is_user:
+            user_queryset = User.objects.filter(is_active=True)
+        else:
+            user_queryset = User.objects.all()
+        queryset = get_queryset_by_filter_is_banned(user, self.request, Post)
+        return user_queryset.annotate(
             posts_count=Count(
                 'posts',
                 filter=Q(posts__is_banned=False),
+                distinct=True
             )
         ).prefetch_related(
             Prefetch(
                 'posts',
-                queryset=Post.objects.filter(is_banned=False)
-                .annotate(
-                    likes_count=Count('likes'),
-                    comments_count=Count('comments')
-                )
-                .prefetch_related(
+                queryset=queryset.annotate(
+                    likes_count=Count('likes', distinct=True),
+                    comments_count=Count('comments', distinct=True)
+                ).prefetch_related(
                     Prefetch(
                         'media',
                         queryset=Media.objects.filter(order=MC.PREVIEW_ORDER),
@@ -126,9 +137,12 @@ class UserViewSet(
         return Response(serializer.data, HTTPStatus.OK)
 
 
-class PostViewSet(HttpLookupMixin, FilterMixin, ModelViewSet):
+class PostViewSet(HttpLookupMixin, ModelViewSet):
     queryset = Post.objects.all()
+    filter_backends = [DjangoFilterBackend, OrderingFilter]
+    filterset_class = PostFilter
     ordering_fields = ['likes_count', 'comments_count']
+    ordering = ['-created_at']
 
     def get_permissions(self):
         user = self.request.user
@@ -152,17 +166,19 @@ class PostViewSet(HttpLookupMixin, FilterMixin, ModelViewSet):
         return serializers.PostSerializer
 
     def get_queryset(self):
-        queryset = Post.objects.annotate(
-            likes_count=Count('likes'),
-            comments_count=Count('comments'),
+        user = self.request.user
+        queryset = get_queryset_by_filter_is_banned(user, self.request, Post)
+        is_liked_value = Value(False)
+        if user.is_authenticated:
+            is_liked_value = Exists(Like.objects.filter(
+                post=OuterRef('pk'),
+                user=self.request.user
+            ))
+        queryset = queryset.annotate(
+            likes_count=Count('likes', distinct=True),
+            comments_count=Count('comments', distinct=True),
+            is_liked=is_liked_value
         )
-        if self.request.user.is_authenticated:
-            queryset = queryset.annotate(
-                is_liked=Exists(Like.objects.filter(
-                    post=OuterRef('pk'),
-                    user=self.request.user
-                ))
-            )
         if self.action == 'list':
             queryset = queryset.prefetch_related(Prefetch(
                 'media',
@@ -170,12 +186,6 @@ class PostViewSet(HttpLookupMixin, FilterMixin, ModelViewSet):
                 to_attr='preview_media'
             ))
         return queryset
-
-    def get_filterset_class(self):
-        user = self.request.user
-        if user.is_authenticated and not user.is_user:
-            return ModerationPostFilter
-        return PostFilter
 
     def perform_create(self, serializer):
         serializer.save(user=self.request.user)
@@ -241,7 +251,6 @@ class CommentViewSet(
 
 class ReportViewSet(
     HttpLookupMixin,
-    FilterMixin,
     ListUpdateMixin,
     GenericViewSet
 ):
@@ -249,19 +258,22 @@ class ReportViewSet(
     serializer_class = serializers.ModerationReportSerializer
     http_method_names = ['get', 'patch']
     permission_classes = [IsModerOrStreamer]
+    filter_backends = [DjangoFilterBackend, OrderingFilter]
     filterset_fields = ['status']
     ordering_fields = ['created_at']
+    ordering = ['-created_at']
 
 
 class VideoViewSet(
     HttpLookupMixin,
-    FilterMixin,
     ListUpdateMixin,
     mixins.CreateModelMixin,
     GenericViewSet
 ):
     queryset = Video.objects.all()
-    ordering_fields = ['votings_count']
+    filter_backends = [DjangoFilterBackend, OrderingFilter]
+    filterset_fields = ['category']
+    ordering = ['-votings_count']
 
     def get_serializer_class(self):
         user = self.request.user
@@ -276,21 +288,18 @@ class VideoViewSet(
         return [perm.IsAuthenticatedOrReadOnly()]
 
     def get_queryset(self):
-        return Video.objects.filter(is_banned=False).annotate(
-            is_voted=Exists(
-                Voting.objects.filter(
-                    video=OuterRef('pk'),
-                    user=self.request.user
-                )
-            ),
+        user = self.request.user
+        queryset = get_queryset_by_filter_is_banned(user, self.request, Video)
+        is_voted = Value(False)
+        if user.is_authenticated:
+            is_voted = Exists(Voting.objects.filter(
+                video=OuterRef('pk'),
+                user=self.request.user
+            ))
+        return queryset.annotate(
+            is_voted=is_voted,
             votings_count=Count('votes')
         )
-
-    def get_filterset_fields(self):
-        user = self.request.user
-        if user.is_authenticated and not user.is_user:
-            return ['category', 'is_banned']
-        return ['category']
 
     def perform_create(self, serializer):
         serializer.save(user=self.request.user)
@@ -309,3 +318,24 @@ class VideoViewSet(
         video = self.get_queryset().get(public_id=public_id)
         serializer = self.get_serializer(video)
         return Response(serializer.data, HTTPStatus.OK)
+
+
+class SearchView(APIView):
+    def get(self, request):
+        user = request.user
+        param_search = request.query_params.get('find', '')
+        posts = Post.objects.filter(
+            name__icontains=param_search
+        ).prefetch_related(Prefetch(
+            'media',
+            queryset=Media.objects.filter(order=MC.PREVIEW_ORDER),
+            to_attr='preview_media'
+        ))
+        users = User.objects.filter(username__icontains=param_search)
+        if not user.is_authenticated or user.is_user:
+            posts = posts.filter(is_banned=False)
+            users = users.filter(is_active=True)
+        return Response({
+            'posts': serializers.SearchPostSerializer(posts, many=True).data,
+            'users': serializers.ShortProfileSerializer(users, many=True).data
+        }, HTTPStatus.OK)

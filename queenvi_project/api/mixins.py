@@ -1,17 +1,10 @@
-from django_filters.rest_framework import DjangoFilterBackend
 from rest_framework import mixins as mx, serializers
-from rest_framework.filters import OrderingFilter
 
 
 # views.py
 class HttpLookupMixin:
     http_method_names = ['get', 'post', 'patch', 'delete']
     lookup_field = 'public_id'
-
-
-class FilterMixin:
-    filter_backends = [DjangoFilterBackend, OrderingFilter]
-    ordering = ['-created_at']
 
 
 class ListUpdateMixin(mx.ListModelMixin, mx.UpdateModelMixin):
@@ -29,12 +22,6 @@ class BaseSerializerMixin(serializers.ModelSerializer):
             attr: value for attr, value in data.items()
             if value is not None and value != ''
         }
-
-
-class PostSerializerMixin:
-    likes_count = serializers.ReadOnlyField()
-    comments_count = serializers.ReadOnlyField()
-    is_liked = serializers.BooleanField(read_only=True, default=False)
 
 
 class VideoSerializerMixin:

@@ -82,16 +82,26 @@ class MediaSerializer(PreviewMediaSerializer):
         fields = PreviewMediaSerializer.Meta.fields + ['order', 'created_at']
 
 
-class ShortPostSerializer(mx.PostSerializerMixin, mx.BaseSerializerMixin):
+class ShortPostSerializer(mx.BaseSerializerMixin):
     """Краткая информация о посте."""
-    user = ShortProfileSerializer(read_only=True)
     name = serializers.SerializerMethodField(read_only=True)
     description = serializers.SerializerMethodField(read_only=True)
     preview = serializers.SerializerMethodField(read_only=True)
+    likes_count = serializers.ReadOnlyField()
+    comments_count = serializers.ReadOnlyField()
+    is_liked = serializers.ReadOnlyField()
 
     class Meta:
         model = Post
         fields = SC.POST_BASE_FIELDS + ['preview']
+
+
+class SearchPostSerializer(mx.BaseSerializerMixin):
+    """Краткая информация о посте в поиске."""
+    preview = serializers.SerializerMethodField(read_only=True)
+
+    class Meta(ShortPostSerializer.Meta):
+        fields = ['public_id', 'name', 'preview']
 
     def get_name(self, obj):
         """Возвращает лишь первые несколько символов для название."""
@@ -174,7 +184,7 @@ class PostSerializer(ShortPostSerializer):
         return super().update(instance, validated_data)
 
 
-class ModerationPostSerializer(mx.PostSerializerMixin, mx.BaseSerializerMixin):
+class ModerationPostSerializer(mx.BaseSerializerMixin):
     """Отображение и редактирование поста для модератора."""
     user = ShortProfileSerializer(read_only=True)
     comments = CommentSerializer(many=True, read_only=True)
@@ -183,6 +193,9 @@ class ModerationPostSerializer(mx.PostSerializerMixin, mx.BaseSerializerMixin):
         many=True,
         read_only=True
     )
+    likes_count = serializers.ReadOnlyField()
+    comments_count = serializers.ReadOnlyField()
+    is_liked = serializers.ReadOnlyField()
 
     class Meta(ModerationShortPostSerializer.Meta):
         fields = SC.POST_BASE_FIELDS + [
@@ -208,7 +221,7 @@ class ProfileSerializer(ShortProfileSerializer):
         ]
 
 
-class ModerationSteamerProfileSerializer(ProfileSerializer):
+class ModerationProfileSerializer(ProfileSerializer):
     """Профиль юзера для модерации и стримера."""
     class Meta(ProfileSerializer.Meta):
         fields = ProfileSerializer.Meta.fields + [
@@ -310,13 +323,15 @@ class ModerationReportSerializer(mx.BaseSerializerMixin):
         return value
 
 
-class VideoSerializer(mx.VideoSerializerMixin, mx.BaseSerializerMixin):
+class VideoSerializer(mx.BaseSerializerMixin):
     """Сериализатор видео."""
     youtube_url = serializers.URLField(write_only=True)
     comment = serializers.CharField(
         max_length=VideoConstants.COMMENT_MAX_LENGTH
     )
     user = ShortProfileSerializer(read_only=True)
+    votings_count = serializers.ReadOnlyField()
+    is_voted = serializers.ReadOnlyField()
 
     class Meta:
         model = Video
@@ -347,11 +362,11 @@ class VideoSerializer(mx.VideoSerializerMixin, mx.BaseSerializerMixin):
         return super().update(instance, validated_data)
 
 
-class ModerationVideoSerializer(
-    mx.VideoSerializerMixin, mx.BaseSerializerMixin
-):
+class ModerationVideoSerializer(mx.BaseSerializerMixin):
     """Сериализатор видео для модерации."""
     user = ShortProfileSerializer(read_only=True)
+    votings_count = serializers.ReadOnlyField()
+    is_voted = serializers.ReadOnlyField()
 
     class Meta(VideoSerializer.Meta):
         fields = SC.VIDEO_BASE_FIELDS + ['is_banned', 'updated_at']
