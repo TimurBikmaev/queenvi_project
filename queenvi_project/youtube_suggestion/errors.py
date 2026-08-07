@@ -17,6 +17,6 @@ class VideoIdIncorrectError(Exception):
         message = (
             'В предложку можно скинуть видео только из YouTube. Ссылка на '
             f'видео должна начинаться с \'{VSC.URL_VIDEO_YOUTUBE_1}\' '
-            f'или \'{VSC.URL_VIDEO_YOUTUBE_2}\' ^-^'
+            f'или \'{VSC.URL_VIDEO_YOUTUBE_2}\' и быть доступной ^-^'
         )
         super().__init__(message)

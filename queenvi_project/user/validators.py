@@ -18,7 +18,7 @@ class ChangeUserValidator:
         if not user.is_streamer:
             raise ChangeUserValidationError(role=True)
 
-    def can_user_change_is_active(user, target):
+    def can_user_change_is_banned(user, target):
         """Модер может забанить или разбанить только обычного юзера."""
         if user.is_moderator and not target.is_user:
-            raise ChangeUserValidationError(is_active=True)
+            raise ChangeUserValidationError(is_banned=True)

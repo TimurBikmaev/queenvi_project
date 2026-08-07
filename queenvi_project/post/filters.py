@@ -34,10 +34,3 @@ class PostFilter(filters.FilterSet):
     class Meta:
         model = Post
         fields = ['is_for_stream']
-
-
-class ModerationPostFilter(PostFilter):
-
-    class Meta:
-        model = Post
-        fields = ['is_for_stream', 'is_banned']

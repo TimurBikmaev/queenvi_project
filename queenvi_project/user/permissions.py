@@ -1,6 +1,15 @@
 from rest_framework.permissions import BasePermission, SAFE_METHODS
 
 
+class NotBannedAllowAny(BasePermission):
+    """Доступ заблокированным юзерам запрещен."""
+
+    def has_permission(self, request, view):
+        if request.user.is_authenticated and request.user.is_banned is True:
+            return False
+        return True
+
+
 class IsOwner(BasePermission):
     """Изменение доступно только владельцу."""
 

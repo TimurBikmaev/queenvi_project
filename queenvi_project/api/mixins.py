@@ -1,17 +1,13 @@
-from django_filters.rest_framework import DjangoFilterBackend
 from rest_framework import mixins as mx, serializers
-from rest_framework.filters import OrderingFilter
+
+from core.errors import ChangeObjValidationError
+from core.validators import ChangeBanStatusValidator as CBSV
 
 
 # views.py
 class HttpLookupMixin:
     http_method_names = ['get', 'post', 'patch', 'delete']
     lookup_field = 'public_id'
-
-
-class FilterMixin:
-    filter_backends = [DjangoFilterBackend, OrderingFilter]
-    ordering = ['-created_at']
 
 
 class ListUpdateMixin(mx.ListModelMixin, mx.UpdateModelMixin):
@@ -31,12 +27,18 @@ class BaseSerializerMixin(serializers.ModelSerializer):
         }
 
 
-class PostSerializerMixin:
-    likes_count = serializers.ReadOnlyField()
-    comments_count = serializers.ReadOnlyField()
-    is_liked = serializers.BooleanField(read_only=True, default=False)
-
-
 class VideoSerializerMixin:
     is_voted = serializers.ReadOnlyField()
     votings_count = serializers.ReadOnlyField()
+
+
+class UpdateBanMixin:
+    def update(self, instance, validated_data):
+        is_banned = validated_data.get('is_banned')
+        try:
+            CBSV.cannot_change_streamer_obj(instance)
+            if is_banned is not None and is_banned is False:
+                CBSV.cannot_unban_obj_of_banned_user(instance)
+        except ChangeObjValidationError as e:
+            raise serializers.ValidationError(str(e))
+        return super().update(instance, validated_data)
