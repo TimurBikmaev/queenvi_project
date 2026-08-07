@@ -66,7 +66,7 @@ class CommentSerializer(mx.BaseSerializerMixin):
 
     class Meta:
         model = Comment
-        fields = ['public_id', 'user', 'text', 'created_at']
+        fields = ['public_id', 'user', 'text', 'created_at', 'updated_at']
 
 
 class PreviewMediaSerializer(mx.BaseSerializerMixin):
@@ -84,6 +84,7 @@ class MediaSerializer(PreviewMediaSerializer):
 
 class ShortPostSerializer(mx.BaseSerializerMixin):
     """Краткая информация о посте."""
+    user = ShortProfileSerializer(read_only=True)
     name = serializers.SerializerMethodField(read_only=True)
     description = serializers.SerializerMethodField(read_only=True)
     preview = serializers.SerializerMethodField(read_only=True)
@@ -94,14 +95,6 @@ class ShortPostSerializer(mx.BaseSerializerMixin):
     class Meta:
         model = Post
         fields = SC.POST_BASE_FIELDS + ['preview']
-
-
-class SearchPostSerializer(mx.BaseSerializerMixin):
-    """Краткая информация о посте в поиске."""
-    preview = serializers.SerializerMethodField(read_only=True)
-
-    class Meta(ShortPostSerializer.Meta):
-        fields = ['public_id', 'name', 'preview']
 
     def get_name(self, obj):
         """Возвращает лишь первые несколько символов для название."""
@@ -114,6 +107,18 @@ class SearchPostSerializer(mx.BaseSerializerMixin):
         return obj.description[
             :SC.POST_PROFILE_DESCRIPTION_MAX_LENGTH
         ]
+
+    def get_preview(self, obj):
+        preview = obj.preview_media[cs.MediaConstants.PREVIEW_ORDER]
+        return PreviewMediaSerializer(preview, context=self.context).data
+
+
+class SearchPostSerializer(mx.BaseSerializerMixin):
+    """Краткая информация о посте в поиске."""
+    preview = serializers.SerializerMethodField(read_only=True)
+
+    class Meta(ShortPostSerializer.Meta):
+        fields = ['public_id', 'name', 'preview']
 
     def get_preview(self, obj):
         preview = obj.preview_media[cs.MediaConstants.PREVIEW_ORDER]
@@ -136,7 +141,6 @@ class PostSerializer(ShortPostSerializer):
         required=False,
         allow_blank=True
     )
-    comments = CommentSerializer(many=True, read_only=True)
     create_media = serializers.ListField(
         child=serializers.FileField(),
         min_length=SC.POST_MEDIA_MIN_COUNT,
@@ -150,9 +154,7 @@ class PostSerializer(ShortPostSerializer):
     )
 
     class Meta(ShortPostSerializer.Meta):
-        fields = SC.POST_BASE_FIELDS + [
-            'create_media', 'list_media', 'comments',
-        ]
+        fields = SC.POST_BASE_FIELDS + ['create_media', 'list_media']
 
     def check_media_data(self, files):
         try:
@@ -184,10 +186,9 @@ class PostSerializer(ShortPostSerializer):
         return super().update(instance, validated_data)
 
 
-class ModerationPostSerializer(mx.BaseSerializerMixin):
+class ModerationPostSerializer(mx.UpdateBanMixin, mx.BaseSerializerMixin):
     """Отображение и редактирование поста для модератора."""
     user = ShortProfileSerializer(read_only=True)
-    comments = CommentSerializer(many=True, read_only=True)
     list_media = MediaSerializer(
         source='media',
         many=True,
@@ -198,9 +199,7 @@ class ModerationPostSerializer(mx.BaseSerializerMixin):
     is_liked = serializers.ReadOnlyField()
 
     class Meta(ModerationShortPostSerializer.Meta):
-        fields = SC.POST_BASE_FIELDS + [
-            'list_media', 'comments', 'is_banned', 'updated_at'
-        ]
+        fields = SC.POST_BASE_FIELDS + ['list_media', 'is_banned']
         read_only_fields = [
             'public_id', 'name', 'description', 'is_for_stream'
         ]
@@ -217,30 +216,32 @@ class ProfileSerializer(ShortProfileSerializer):
 
     class Meta(ShortProfileSerializer.Meta):
         fields = ShortProfileSerializer.Meta.fields + [
-            'posts_count', 'posts', 'created_at'
+            'posts_count', 'posts', 'created_at', 'updated_at'
         ]
 
 
 class ModerationProfileSerializer(ProfileSerializer):
     """Профиль юзера для модерации и стримера."""
     class Meta(ProfileSerializer.Meta):
-        fields = ProfileSerializer.Meta.fields + [
-            'is_active', 'role', 'updated_at'
-        ]
+        fields = ProfileSerializer.Meta.fields + ['is_banned', 'role']
         read_only_fields = ['username', 'twitch_avatar', 'custom_avatar']
 
     def update(self, instance, validated_data):
         user = self.context['request'].user
         role = validated_data.get('role')
+        is_banned = validated_data.get('is_banned')
         try:
             CUV.user_cannot_change_himself(user, self.instance)
-            if role:
+            if role is not None:
                 CUV.can_user_change_role(user)
                 CUV.only_one_streamer(user, role)
-            if 'is_active' in validated_data:
-                CUV.can_user_change_is_active(user, self.instance)
+            if is_banned is not None:
+                CUV.can_user_change_is_banned(user, self.instance)
         except ChangeUserValidationError as e:
             raise serializers.ValidationError(str(e))
+        if is_banned is not None:
+            Post.objects.filter(user=instance).update(is_banned=is_banned)
+            Video.objects.filter(user=instance).update(is_banned=is_banned)
         return super().update(instance, validated_data)
 
 
@@ -362,14 +363,14 @@ class VideoSerializer(mx.BaseSerializerMixin):
         return super().update(instance, validated_data)
 
 
-class ModerationVideoSerializer(mx.BaseSerializerMixin):
+class ModerationVideoSerializer(mx.UpdateBanMixin, mx.BaseSerializerMixin):
     """Сериализатор видео для модерации."""
     user = ShortProfileSerializer(read_only=True)
     votings_count = serializers.ReadOnlyField()
     is_voted = serializers.ReadOnlyField()
 
     class Meta(VideoSerializer.Meta):
-        fields = SC.VIDEO_BASE_FIELDS + ['is_banned', 'updated_at']
+        fields = SC.VIDEO_BASE_FIELDS + ['is_banned']
         read_only_fields = VideoSerializer.Meta.read_only_fields + [
             'category', 'comment'
         ]

@@ -32,7 +32,10 @@ class VideoSerivce:
             video_id = url[len(VSC.URL_VIDEO_YOUTUBE_2):]
         else:
             raise VideoIdIncorrectError()
-        return video_id[:VideoConstants.VIDEO_ID_MAX_LENGTH]
+        video_id = video_id[:VideoConstants.VIDEO_ID_MAX_LENGTH]
+        if len(video_id) != VideoConstants.VIDEO_ID_MAX_LENGTH:
+            raise VideoIdIncorrectError()
+        return video_id
 
     @staticmethod
     def get_existed_video(video_id):
@@ -44,16 +47,19 @@ class VideoSerivce:
     @staticmethod
     def get_video_data(video_id):
         """Получает данные о видео из ютуба."""
-        response = requests.get(
-            VSC.URL_GET_VIDEO_DATA,
-            params={
-                'part': VSC.PART,
-                'id': video_id,
-                'key': settings.GOOGLE_API_KEY,
-            },
-        )
-        response.raise_for_status()
-        return response.json()['items'][VSC.IDX_VIDEO_DATA]
+        try:
+            response = requests.get(
+                VSC.URL_GET_VIDEO_DATA,
+                params={
+                    'part': VSC.PART,
+                    'id': video_id,
+                    'key': settings.GOOGLE_API_KEY,
+                },
+            )
+            response.raise_for_status()
+            return response.json()['items'][VSC.IDX_VIDEO_DATA]
+        except IndexError:
+            raise VideoIdIncorrectError()
 
     @staticmethod
     def create_video(data, user, video_id, category, comment):

@@ -29,17 +29,18 @@ class User(CreatedAtMixin, UpdatedMixin, AbstractUser):
         choices=UserRole.choices,
         default=UserRole.USER,
     )
+    is_banned = models.BooleanField('Забанен ли', default=False)
 
     class Meta:
         verbose_name = 'Пользователь'
         verbose_name_plural = 'Пользователи'
 
     def ban(self):
-        self.is_active = False
+        self.is_banned = True
         return self
 
     def unban(self):
-        self.is_active = True
+        self.is_banned = False
         return self
 
     def make_user(self):
@@ -61,10 +62,6 @@ class User(CreatedAtMixin, UpdatedMixin, AbstractUser):
     @property
     def is_streamer(self):
         return self.role == UserRole.STREAMER
-
-    @property
-    def is_banned(self):
-        return not self.is_active
 
     def __str__(self):
         return f'User id: {self.id} | role: {self.role}'

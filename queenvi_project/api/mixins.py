@@ -1,5 +1,8 @@
 from rest_framework import mixins as mx, serializers
 
+from core.errors import ChangeObjValidationError
+from core.validators import ChangeBanStatusValidator as CBSV
+
 
 # views.py
 class HttpLookupMixin:
@@ -27,3 +30,15 @@ class BaseSerializerMixin(serializers.ModelSerializer):
 class VideoSerializerMixin:
     is_voted = serializers.ReadOnlyField()
     votings_count = serializers.ReadOnlyField()
+
+
+class UpdateBanMixin:
+    def update(self, instance, validated_data):
+        is_banned = validated_data.get('is_banned')
+        try:
+            CBSV.cannot_change_streamer_obj(instance)
+            if is_banned is not None and is_banned is False:
+                CBSV.cannot_unban_obj_of_banned_user(instance)
+        except ChangeObjValidationError as e:
+            raise serializers.ValidationError(str(e))
+        return super().update(instance, validated_data)

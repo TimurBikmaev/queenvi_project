@@ -4,12 +4,12 @@ class StateValidationError(Exception):
 
 class ChangeUserValidationError(Exception):
 
-    def __init__(self, streamer=False, role=False, is_active=False):
+    def __init__(self, streamer=False, role=False, is_banned=False):
         msg = 'Нельзя изменить свою роль или статус бана :/'
         if streamer:
             msg = 'Нельзя назначить второго стримера :)'
         elif role:
             msg = 'Только стример может менять роли юзера!'
-        elif is_active:
+        elif is_banned:
             msg = 'Модератор может менять статус бана только у обычных юзеров!'
         super().__init__(msg)

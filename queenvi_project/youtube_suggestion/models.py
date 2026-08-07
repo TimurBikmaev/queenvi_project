@@ -32,7 +32,7 @@ class Video(CreatedAtMixin, UpdatedMixin, PublicIdMixin):
         'Категория',
         max_length=CategoryConstants.CATEGORY_MAX_LENGTH,
         choices=Category.choices,
-        blank=True
+        blank=False
     )
     comment = models.CharField(
         'Комментарий к видео',
