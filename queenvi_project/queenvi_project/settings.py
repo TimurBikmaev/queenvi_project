@@ -3,18 +3,55 @@ from pathlib import Path
 
 from dotenv import load_dotenv
 
+from core.constants import LoggingConstants
+
 
 BASE_DIR = Path(__file__).resolve().parent.parent
 load_dotenv(BASE_DIR / '.env')
+
+SECRET_KEY = os.environ['DJANGO_SECRET_KEY']
+DEBUG = os.getenv('DEBUG', 'False').lower() in ('true', '1', 't')
+ALLOWED_HOSTS = os.getenv('ALLOWED_HOSTS', '').split(',')
 
 GOOGLE_API_KEY = os.environ['GOOGLE_API_KEY']
 TWITCH_CLIENT_ID = os.environ['TWITCH_CLIENT_ID']
 TWITCH_CLIENT_SECRET = os.environ['TWITCH_CLIENT_SECRET']
 TWITCH_REDIRECT_URI = os.environ['TWITCH_REDIRECT_URI']
 
-SECRET_KEY = os.environ['DJANGO_SECRET_KEY']
-DEBUG = os.getenv('DEBUG', 'False').lower() in ('true', '1', 't')
-ALLOWED_HOSTS = os.getenv('ALLOWED_HOSTS', '').split(',')
+LOG_DIR = BASE_DIR / 'logs'
+LOG_DIR.mkdir(exist_ok=True)
+LOGGING = {
+    'version': LoggingConstants.CONFIG_VERSION,
+    'disable_existing_loggers': False,
+
+    'formatters': {
+        'log_style': {
+            'format': '{asctime} | {levelname} | {name} | {message}',
+            'style': '{',
+        },
+    },
+
+    'handlers': {
+        'console': {
+            'class': 'logging.StreamHandler',
+            'formatter': 'log_style',
+        },
+        'file': {
+            'class': 'logging.handlers.RotatingFileHandler',
+            'filename': LOG_DIR / 'django.log',
+            'maxBytes': LoggingConstants.FILE_MAX_SIZE,
+            'backupCount': LoggingConstants.BACKUP_COUNT,
+            'formatter': 'log_style',
+            'encoding': 'utf-8',
+        },
+    },
+
+    'root': {
+        'handlers': ['console', 'file'],
+        'level': 'INFO',
+    },
+}
+
 
 INSTALLED_APPS = [
     'api.apps.ApiConfig',
@@ -28,7 +65,7 @@ INSTALLED_APPS = [
     'django.contrib.messages',
     'django.contrib.staticfiles',
     'rest_framework',
-    "django_filters"
+    'django_filters'
 ]
 
 MIDDLEWARE = [
@@ -103,8 +140,8 @@ MEDIA_ROOT = BASE_DIR / 'media'
 
 
 REST_FRAMEWORK = {
-    "DEFAULT_FILTER_BACKENDS": [
-        "django_filters.rest_framework.DjangoFilterBackend",
-        "rest_framework.filters.OrderingFilter",
+    'DEFAULT_FILTER_BACKENDS': [
+        'django_filters.rest_framework.DjangoFilterBackend',
+        'rest_framework.filters.OrderingFilter',
     ]
 }

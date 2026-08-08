@@ -1,3 +1,4 @@
+import logging
 from pathlib import Path
 from shutil import rmtree
 
@@ -6,6 +7,9 @@ from django.utils import timezone
 
 from post.constants import MediaConstants as MC, MediaType
 from post.errors import MediaFormatValidationError
+
+
+logger = logging.getLogger(__name__)
 
 
 class FilterUtils:
@@ -18,7 +22,7 @@ class FilterUtils:
 
 class MediaUtils:
     def media_upload_to(instance, filename):
-        """Переименование файлов и создание медиа-катлогов постов."""
+        """Переименование файлов и создание медиа-каталогов постов."""
         ext = Path(filename).suffix
         filename = f'{instance.order}_{instance.file_type}'
         return f'posts/{instance.post.public_id}/{filename}{ext}'
@@ -28,6 +32,10 @@ class MediaUtils:
         post_dir = Path(settings.MEDIA_ROOT)/'posts'/public_id
         if post_dir.exists():
             rmtree(post_dir)
+            logger.info(
+                'Каталог медиа у поста %s был успешно удален',
+                public_id
+            )
 
     def file_type_revealing(file):
         """Определение формата файла из допустимых."""
@@ -47,6 +55,10 @@ class MediaUtils:
         for idx, file in enumerate(files):
             file_type, ext = MediaUtils.file_type_revealing(file)
             if file_type is None:
+                logger.warning(
+                    'Файл %s не соответствует допустимому формату',
+                    file.name
+                )
                 raise MediaFormatValidationError(ext, file.name)
             media_data.append({
                 'file': file,

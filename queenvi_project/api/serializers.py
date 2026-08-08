@@ -1,3 +1,5 @@
+import logging
+
 from django.contrib.auth import get_user_model
 from PIL import Image
 from rest_framework import serializers
@@ -17,6 +19,7 @@ from youtube_suggestion.models import Video
 from youtube_suggestion.services import VideoSerivce
 
 
+logger = logging.getLogger(__name__)
 User = get_user_model()
 
 
@@ -31,11 +34,29 @@ class AvatarProfileSerializer(mx.BaseSerializerMixin):
     def validate_custom_avatar(self, image):
         """Проверка соответствия аватарки на допустимый размер и разрешение."""
         if image.size > UC.AVATAR_MAX_SIZE:
+            logger.warning(
+                'Кастомная авка у юзера %s превышает размер: %s > %s',
+                self.instance.username,
+                image.size,
+                UC.AVATAR_MAX_SIZE,
+            )
             raise serializers.ValidationError(
                 f'Максимальный размер файла {UC.AVATAR_MAX_SIZE} МБ'
             )
         img = Image.open(image)
-        if img.width > UC.AVATAR_MAX_WIDTH or img.height > UC.AVATAR_MAX_WIDTH:
+        if (
+            img.width > UC.AVATAR_MAX_WIDTH
+            or img.height > UC.AVATAR_MAX_HEIGHT
+        ):
+            logger.warning(
+                'Кастомная авка у юзера %s превышает разрешение: '
+                '%sx%s > %sx%s',
+                self.instance.username,
+                img.width,
+                img.height,
+                UC.AVATAR_MAX_WIDTH,
+                UC.AVATAR_MAX_HEIGHT,
+            )
             raise serializers.ValidationError(
                 'Максимальное разрешение файла '
                 f'{UC.AVATAR_MAX_WIDTH}x{UC.AVATAR_MAX_HEIGHT}'
@@ -98,14 +119,12 @@ class ShortPostSerializer(mx.BaseSerializerMixin):
 
     def get_name(self, obj):
         """Возвращает лишь первые несколько символов для название."""
-        return obj.name[
-            :SC.POST_PROFILE_NAME_MAX_LENGTH
-        ]
+        return obj.name[:cs.PostConstants.NAME_PROFILEMAX_LENGTH]
 
     def get_description(self, obj):
         """Возвращает лишь первые несколько символов для описания."""
         return obj.description[
-            :SC.POST_PROFILE_DESCRIPTION_MAX_LENGTH
+            :cs.PostConstants.DESCRIPTION_PROFILE_MAX_LENGTH
         ]
 
     def get_preview(self, obj):
@@ -171,19 +190,45 @@ class PostSerializer(ShortPostSerializer):
             Media(post=post, **data)
             for data in media_data
         )
+        logger.info(
+            'Юзер %s (%s) создал пост %s',
+            post.user.username,
+            post.user.role,
+            post.public_id
+        )
         return post
 
     def update(self, instance, validated_data):
+        name = validated_data.get('name')
+        description = validated_data.get('description')
+        is_for_stream = validated_data.get('is_for_stream')
         files = validated_data.pop('create_media', None)
+        changes = {}
+        if name is not None:
+            changes['name'] = (instance.name, name)
+        if description is not None:
+            changes['description'] = (instance.description, description)
+        if is_for_stream is not None:
+            changes['is_for_stream'] = (instance.is_for_stream, is_for_stream)
+
         if files is not None:
             media_data = self.check_media_data(files)
+            changes['media'] = ('Изменены медиа поста')
             instance.media.all().delete()
             MediaUtils.del_media_catalog(instance.public_id)
             Media.objects.bulk_create(
                 Media(post=instance, **data)
                 for data in media_data
             )
-        return super().update(instance, validated_data)
+        post = super().update(instance, validated_data)
+        logger.info(
+            'Юзер %s (%s) обновил пост %s: %s',
+            post.user.username,
+            post.user.role,
+            post.public_id,
+            changes
+        )
+        return post
 
 
 class ModerationPostSerializer(mx.UpdateBanMixin, mx.BaseSerializerMixin):
@@ -230,19 +275,31 @@ class ModerationProfileSerializer(ProfileSerializer):
         user = self.context['request'].user
         role = validated_data.get('role')
         is_banned = validated_data.get('is_banned')
+        changes = {}
         try:
             CUV.user_cannot_change_himself(user, self.instance)
             if role is not None:
-                CUV.can_user_change_role(user)
-                CUV.only_one_streamer(user, role)
+                CUV.can_user_change_role(user, self.instance)
+                CUV.only_one_streamer(user, role, self.instance)
+                changes['role'] = (instance.role, role)
             if is_banned is not None:
                 CUV.can_user_change_is_banned(user, self.instance)
+                changes['is_banned'] = (instance.is_banned, is_banned)
         except ChangeUserValidationError as e:
             raise serializers.ValidationError(str(e))
         if is_banned is not None:
             Post.objects.filter(user=instance).update(is_banned=is_banned)
             Video.objects.filter(user=instance).update(is_banned=is_banned)
-        return super().update(instance, validated_data)
+        new_user = super().update(instance, validated_data)
+        logger.info(
+            'Юзер %s (%s) измененил юзера %s (%s): %s',
+            user.username,
+            user.role,
+            instance.username,
+            instance.role,
+            changes
+        )
+        return new_user
 
 
 class CreateReportSerializer(mx.BaseSerializerMixin):
@@ -259,17 +316,46 @@ class CreateReportSerializer(mx.BaseSerializerMixin):
         read_only_fields = ['user', 'post']
 
     def create(self, validated_data):
+        user = self.context['request'].user
+        post = validated_data['post']
         reason = validated_data['reason']
         other = validated_data.get('other')
-        if not validated_data['post'].user.is_user:
+        if not post.user.is_user:
+            logger.warning(
+                'Юзер %s (%s) попытался зарепортить пост %s автора %s (%s)',
+                user.username,
+                user.role,
+                post.public_id,
+                post.user.username,
+                post.user.role
+            )
             raise serializers.ValidationError(
                 cs.ReportConstants.MSG_CANNOT_REPORT_STAFF
             )
         if other is not None and reason != cs.ReportReasonStatus.OTHER:
+            logger.warning(
+                'Юзер %s (%s) попытался отправить текстовый репорт без '
+                'категории \'other\' на пост %s автора %s (%s)',
+                user.username,
+                user.role,
+                post.public_id,
+                post.user.username,
+                post.user.role
+            )
             raise serializers.ValidationError(
                 cs.ReportConstants.MSG_OTHER_WITHOUT_REASON
             )
-        return super().create(validated_data)
+        report = super().create(validated_data)
+        logger.info(
+            'Юзер %s (%s) отправил репорт %s на пост %s автора %s (%s)',
+            user.username,
+            user.role,
+            report.public_id,
+            post.public_id,
+            post.user.username,
+            post.user.role
+        )
+        return report
 
     def to_representation(self, obj):
         """При создании жалобы юзера прост возвращается сообщение."""
@@ -295,16 +381,29 @@ class ModerationReportSerializer(mx.BaseSerializerMixin):
         ]
 
     def update(self, instance, validated_data):
+        user = self.context['request'].user
+        old_status = instance.status
         status = validated_data.get('status')
-        instance = super().update(instance, validated_data)
         if status == cs.ReportStatus.APPROVED:
             instance.post.is_banned = True
             instance.post.save(update_fields=['is_banned'])
         elif status == cs.ReportStatus.REJECTED:
             instance.post.is_banned = False
             instance.post.save(update_fields=['is_banned'])
-        instance.moder = self.context['request'].user
-        instance.save()
+        validated_data['moder'] = user
+        instance = super().update(instance, validated_data)
+        logger.info(
+            'Юзер %s (%s) изменил статус репорта %s c %s на %s '
+            'от юзера %s на пост %s автора %s',
+            user.username,
+            user.role,
+            instance.public_id,
+            old_status,
+            instance.status,
+            instance.user.username,
+            instance.post.public_id,
+            instance.post.user.username
+        )
         return instance
 
     def get_user(self, obj):
@@ -322,7 +421,21 @@ class ModerationReportSerializer(mx.BaseSerializerMixin):
 
     def validate_status(self, value):
         """Если репорт рассмотрен, то поменять статус на not_viewed нельзя."""
+        user = self.context['request'].user
+        report = self.instance
         if value == cs.ReportStatus.NOT_VIEWED:
+            logger.warning(
+                'Юзер %s (%s) попытался изменить статус репорта %s c %s на %s '
+                'от юзера %s на пост %s автора %s',
+                user.username,
+                user.role,
+                report.public_id,
+                self.instance.status,
+                value,
+                report.user.username,
+                report.post.public_id,
+                report.post.user.username
+            )
             raise serializers.ValidationError(
                 cs.ReportConstants.MSG_STATUS_TO_NOT_VIEWED
             )
@@ -349,23 +462,51 @@ class VideoSerializer(mx.BaseSerializerMixin):
         ]
 
     def create(self, validated_data):
+        user = self.context['request'].user
         try:
             video = VideoSerivce.video_uploading(
-                validated_data['youtube_url'],
-                validated_data['user'],
+                url=validated_data['youtube_url'],
+                user=user,
                 category=validated_data.get('category', ''),
                 comment=validated_data.get('comment', '')
             )
-        except (er.VideoAlreadyExistsError, er.VideoIdIncorrectError) as e:
+        except (
+            er.VideoAlreadyExistsError,
+            er.VideoIdIncorrectError,
+            er.VideoRequestError
+        ) as e:
             raise serializers.ValidationError(str(e))
         return video
 
     def update(self, instance, validated_data):
-        if self.context['request'].user.is_user and instance.is_banned:
+        user = self.context['request'].user
+        category = validated_data.get('category')
+        comment = validated_data.get('comment')
+        changes = {}
+        if category is not None:
+            changes['category'] = (instance.category, category)
+        if comment is not None:
+            changes['comment'] = (instance.comment, comment)
+
+        if user.is_user and instance.is_banned:
+            logger.warning(
+                'Юзер %s (%s) попытался изменить забаненное видео %s',
+                user.username,
+                user.role,
+                instance.public_id
+            )
             raise serializers.ValidationError(
                 VideoConstants.MSG_CANNOT_CHANGE_BANNED
             )
-        return super().update(instance, validated_data)
+        video = super().update(instance, validated_data)
+        logger.info(
+            'Юзер %s (%s) обновил видео %s: %s',
+            user.username,
+            user.role,
+            video.public_id,
+            changes
+        )
+        return video
 
 
 class ModerationVideoSerializer(mx.UpdateBanMixin, mx.BaseSerializerMixin):

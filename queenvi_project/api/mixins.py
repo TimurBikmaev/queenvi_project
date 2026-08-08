@@ -1,7 +1,12 @@
+import logging
+
 from rest_framework import mixins as mx, serializers
 
 from core.errors import ChangeObjValidationError
 from core.validators import ChangeBanStatusValidator as CBSV
+
+
+logger = logging.getLogger(__name__)
 
 
 # views.py
@@ -34,11 +39,23 @@ class VideoSerializerMixin:
 
 class UpdateBanMixin:
     def update(self, instance, validated_data):
+        user = validated_data['request'].user
         is_banned = validated_data.get('is_banned')
         try:
-            CBSV.cannot_change_streamer_obj(instance)
+            CBSV.cannot_change_streamer_obj(instance, user)
             if is_banned is not None and is_banned is False:
-                CBSV.cannot_unban_obj_of_banned_user(instance)
+                CBSV.cannot_unban_obj_of_banned_user(instance, user)
         except ChangeObjValidationError as e:
             raise serializers.ValidationError(str(e))
-        return super().update(instance, validated_data)
+        old_is_banned = instance.is_banned
+        obj = super().update(instance, validated_data)
+        logger.info(
+            'Юзер %s (%s) изменил статус бана объекта %s (%s) c %s на %s',
+            user.username,
+            user.role,
+            instance.public_name,
+            instance.id,
+            old_is_banned,
+            is_banned
+        )
+        return obj

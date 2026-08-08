@@ -20,3 +20,9 @@ class VideoIdIncorrectError(Exception):
             f'или \'{VSC.URL_VIDEO_YOUTUBE_2}\' и быть доступной ^-^'
         )
         super().__init__(message)
+
+
+class VideoRequestError(Exception):
+    def __init__(self):
+        message = 'Не удалось получить данные видео :('
+        super().__init__(message)
