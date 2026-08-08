@@ -20,5 +20,5 @@ class ChangeUserValidator:
 
     def can_user_change_is_banned(user, target):
         """Модер может забанить или разбанить только обычного юзера."""
-        if user.is_moderator and not target.is_user:
+        if user.is_moder and not target.is_user:
             raise ChangeUserValidationError(is_banned=True)

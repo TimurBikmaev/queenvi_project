@@ -17,7 +17,7 @@ class ReportStatus(TextChoices):
 
 
 class ReportReasonStatus(TextChoices):
-    ADULT = 'adult', 'Контент для взрослых [18+]'
+    ADULT = 'adult', 'Контент 18+'
     ILLEGAL = 'illegal', 'Незаконный'
     ADVERTISING = 'advertising', 'Реклама'
     SPAM = 'spam', 'Спам'
@@ -32,6 +32,9 @@ class ReportConstants:
         'Жалоба на пост {public_id} отправлена! Модерация ее проверит и при '
         'обнаружении нарушения примет меры. Спасибо, что делаешь сообщество '
         'дружелюбнее :)'
+    )
+    MSG_OTHER_WITHOUT_REASON = (
+        'Нужно выбрать \'другое\' для отправки текстовой жалобы :)'
     )
     MSG_STATUS_TO_NOT_VIEWED = (
         'Если репорт рассмотрен, то его нельзя определить нерассмотренным!'

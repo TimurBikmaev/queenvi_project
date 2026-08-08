@@ -9,7 +9,7 @@ from youtube_suggestion.constants import (
 
 class Video(CreatedAtMixin, UpdatedMixin, PublicIdMixin):
     youtube_id = models.CharField(
-        'ID видео',
+        'YouTube ID',
         max_length=VideoConstants.VIDEO_ID_MAX_LENGTH,
         unique=True
     )
@@ -19,15 +19,15 @@ class Video(CreatedAtMixin, UpdatedMixin, PublicIdMixin):
     )
     preview_url = models.URLField('Превью')
     channel_name = models.CharField(
-        'Название канала',
+        'Канал',
         max_length=VideoConstants.CHANNEL_NAME_MAX_LENGTH
     )
-    pub_date = models.DateTimeField('Дата публикации')
-    duration = models.SmallIntegerField('Длительность')
-    views_count = models.PositiveBigIntegerField('Число просмотров')
-    likes_count = models.PositiveIntegerField('Число лайков')
-    comments_count = models.PositiveIntegerField('Число комментариев')
-    is_banned = models.BooleanField('Забанено ли', default=False)
+    pub_date = models.DateTimeField('Опубликовано на YouTube')
+    duration = models.SmallIntegerField('Длительность в секундах')
+    views_count = models.PositiveBigIntegerField('Просмотры')
+    likes_count = models.PositiveIntegerField('Лайки')
+    comments_count = models.PositiveIntegerField('Коммы из Youtube')
+    is_banned = models.BooleanField('Бан', default=False)
     category = models.CharField(
         'Категория',
         max_length=CategoryConstants.CATEGORY_MAX_LENGTH,
@@ -35,7 +35,7 @@ class Video(CreatedAtMixin, UpdatedMixin, PublicIdMixin):
         blank=False
     )
     comment = models.CharField(
-        'Комментарий к видео',
+        'Комментарий автора',
         max_length=VideoConstants.COMMENT_MAX_LENGTH,
         blank=True
     )
@@ -43,7 +43,7 @@ class Video(CreatedAtMixin, UpdatedMixin, PublicIdMixin):
         User,
         on_delete=models.CASCADE,
         related_name='videos',
-        verbose_name='Видео'
+        verbose_name='Автор'
     )
 
     class Meta:
@@ -54,7 +54,7 @@ class Video(CreatedAtMixin, UpdatedMixin, PublicIdMixin):
         ]
 
     def __str__(self):
-        return (f'Video id: {self.id} | user_id: {self.user_id}')
+        return f'Видео {self.public_id} | {self.user.username}'
 
 
 class Voting(models.Model):

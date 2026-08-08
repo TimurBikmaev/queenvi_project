@@ -2,8 +2,8 @@ from django.db.models import TextChoices
 
 
 class UserRole(TextChoices):
-    USER = 'user', 'Пользователь'
-    MODERATOR = 'moderator', 'Модератор'
+    USER = 'user', 'Юзер'
+    MODER = 'moder', 'Модер'
     STREAMER = 'streamer', 'Стример'
 
 

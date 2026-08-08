@@ -5,14 +5,14 @@ from core.utils import generate_public_id
 
 
 class CreatedAtMixin(models.Model):
-    created_at = models.DateTimeField('Дата появления', auto_now_add=True)
+    created_at = models.DateTimeField('Создан', auto_now_add=True)
 
     class Meta:
         abstract = True
 
 
 class UpdatedMixin(models.Model):
-    updated_at = models.DateTimeField('Дата изменения', auto_now=True)
+    updated_at = models.DateTimeField('Обновлен', auto_now=True)
 
     class Meta:
         abstract = True
@@ -20,6 +20,7 @@ class UpdatedMixin(models.Model):
 
 class PublicIdMixin(models.Model):
     public_id = models.CharField(
+        'Public ID',
         max_length=PublicIdConstants.MAX_LENGTH,
         unique=True,
         default=generate_public_id,

@@ -259,10 +259,15 @@ class CreateReportSerializer(mx.BaseSerializerMixin):
         read_only_fields = ['user', 'post']
 
     def create(self, validated_data):
-        post = validated_data.get('post')
-        if not post.user.is_user:
+        reason = validated_data['reason']
+        other = validated_data.get('other')
+        if not validated_data['post'].user.is_user:
             raise serializers.ValidationError(
                 cs.ReportConstants.MSG_CANNOT_REPORT_STAFF
+            )
+        if other is not None and reason != cs.ReportReasonStatus.OTHER:
+            raise serializers.ValidationError(
+                cs.ReportConstants.MSG_OTHER_WITHOUT_REASON
             )
         return super().create(validated_data)
 
@@ -279,14 +284,14 @@ class ModerationReportSerializer(mx.BaseSerializerMixin):
     """Сериализатор жалобы для модерации."""
     user = serializers.SerializerMethodField(read_only=True)
     post = serializers.SerializerMethodField(read_only=True)
-    moderator = serializers.SerializerMethodField(read_only=True)
+    moder = serializers.SerializerMethodField(read_only=True)
 
     class Meta(CreateReportSerializer.Meta):
         fields = CreateReportSerializer.Meta.fields + [
-            'public_id', 'status', 'moderator', 'created_at', 'updated_at'
+            'public_id', 'status', 'moder', 'created_at', 'updated_at'
         ]
         read_only_fields = CreateReportSerializer.Meta.fields + [
-            'public_id', 'moderator'
+            'public_id', 'moder'
         ]
 
     def update(self, instance, validated_data):
@@ -298,7 +303,7 @@ class ModerationReportSerializer(mx.BaseSerializerMixin):
         elif status == cs.ReportStatus.REJECTED:
             instance.post.is_banned = False
             instance.post.save(update_fields=['is_banned'])
-        instance.moderator = self.context['request'].user
+        instance.moder = self.context['request'].user
         instance.save()
         return instance
 
@@ -310,10 +315,10 @@ class ModerationReportSerializer(mx.BaseSerializerMixin):
         """Возвращаем public_id поста, который зарепортили."""
         return obj.post.public_id
 
-    def get_moderator(self, obj):
+    def get_moder(self, obj):
         """Возвращаем юзернейм модератора, который рассмотрел репорт."""
-        if obj.moderator is not None:
-            return obj.moderator.username
+        if obj.moder is not None:
+            return obj.moder.username
 
     def validate_status(self, value):
         """Если репорт рассмотрен, то поменять статус на not_viewed нельзя."""

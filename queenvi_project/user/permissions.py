@@ -25,5 +25,5 @@ class IsModerOrStreamer(BasePermission):
     def has_permission(self, request, view):
         return (
             request.user.is_authenticated
-            and (request.user.is_moderator or request.user.is_streamer)
+            and (request.user.is_moder or request.user.is_streamer)
         )
