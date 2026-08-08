@@ -18,7 +18,6 @@ ALLOWED_HOSTS = os.getenv('ALLOWED_HOSTS', '').split(',')
 
 INSTALLED_APPS = [
     'api.apps.ApiConfig',
-    'moderation.apps.ModerationConfig',
     'post.apps.PostConfig',
     'user.apps.UserConfig',
     'youtube_suggestion.apps.YoutubeSuggestionConfig',
