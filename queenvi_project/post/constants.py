@@ -3,7 +3,11 @@ from django.db.models import TextChoices
 
 class PostConstants:
     DESCRIPTION_MAX_LENGTH = 1000
+    DESCRIPTION_PROFILE_MAX_LENGTH = 10
+    MEDIA_MAX_COUNT = 10
+    MEDIA_MIN_COUNT = 1
     NAME_MAX_LENGTH = 100
+    NAME_PROFILEMAX_LENGTH = 10
 
 
 class CommentConstansts:

@@ -143,8 +143,8 @@ class PostSerializer(ShortPostSerializer):
     )
     create_media = serializers.ListField(
         child=serializers.FileField(),
-        min_length=SC.POST_MEDIA_MIN_COUNT,
-        max_length=SC.POST_MEDIA_MAX_COUNT,
+        min_length=cs.PostConstants.MEDIA_MIN_COUNT,
+        max_length=cs.PostConstants.MEDIA_MAX_COUNT,
         write_only=True
     )
     list_media = MediaSerializer(
