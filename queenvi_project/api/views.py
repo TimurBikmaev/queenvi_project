@@ -1,6 +1,7 @@
+import logging
 from http import HTTPStatus
 
-from django.contrib.auth import get_user_model, login, logout
+from django.contrib.auth import get_user_model, logout
 from django.db.models import Count, Exists, OuterRef, Prefetch, Q, Value
 from django.shortcuts import get_object_or_404, redirect
 from django_filters.rest_framework import DjangoFilterBackend
@@ -22,12 +23,13 @@ from post.filters import PostFilter
 from post.models import Comment, Like, Media, Post, Report
 from post.utils import MediaUtils
 from post.validators import ReportValidator
-from user.errors import StateValidationError
+from user.errors import AuthValidationError
 from user.permissions import NotBannedAllowAny, IsModerOrStreamer, IsOwner
 from user.services import TwitchLoginService
 from youtube_suggestion.models import Video, Voting
 
 
+logger = logging.getLogger(__name__)
 User = get_user_model()
 
 
@@ -93,9 +95,8 @@ class UserViewSet(
     def twitch_callback(self, request):
         try:
             user = TwitchLoginService.authenticate(request)
-        except StateValidationError as e:
+        except AuthValidationError as e:
             raise ValidationError(e.msg)
-        login(request, user)
         return redirect('profile-detail', username=user.username)
 
     @action(detail=False, methods=['post'])
@@ -108,6 +109,11 @@ class UserViewSet(
         user = self.get_queryset().get(pk=request.user.pk)
         if request.method == 'DELETE':
             if not user.custom_avatar:
+                logger.warning(
+                    'Юзер %s (%s) попытался удалить неустановленную авку',
+                    user.username,
+                    user.role
+                )
                 return Response(
                     {'detail': 'Аватар не установлен'},
                     status=HTTPStatus.BAD_REQUEST
@@ -115,6 +121,11 @@ class UserViewSet(
             user.custom_avatar.delete(save=False)
             user.custom_avatar = None
             user.save()
+            logger.info(
+                'Юзер %s (%s) удалил авку',
+                user.username,
+                user.role
+            )
             serializer = self.get_serializer(user)
             return Response(serializer.data, HTTPStatus.OK)
 
@@ -127,6 +138,11 @@ class UserViewSet(
         if 'custom_avatar' in serializer.validated_data and user.custom_avatar:
             user.custom_avatar.delete(save=False)
         serializer.save()
+        logger.info(
+            'Юзер %s (%s) изменил свою авку',
+            user.username,
+            user.role
+        )
         serializer = self.get_serializer(user)
         return Response(serializer.data, HTTPStatus.OK)
 
@@ -197,9 +213,17 @@ class PostViewSet(HttpLookupMixin, ModelViewSet):
         serializer.save(user=self.request.user)
 
     def destroy(self, request, *args, **kwargs):
+        user = request.user
         post = self.get_object()
+        old_public_id = post.public_id
         MediaUtils.del_media_catalog(post.public_id)
         self.perform_destroy(post)
+        logger.info(
+            'Юзер %s (%s) удалил пост %s',
+            user.username,
+            user.role,
+            old_public_id
+        )
         return Response(status=HTTPStatus.NO_CONTENT)
 
     @action(detail=True, methods=['post', 'delete'])
@@ -252,15 +276,40 @@ class CommentViewSet(
         serializer.save(user=self.request.user, post=post)
 
     def create(self, request, *args, **kwargs):
+        user = request.user
         post = get_object_or_404(Post, public_id=self.kwargs['post_id'])
         if post.is_banned:
+            logger.info(
+                'Юзер %s (%s) попытался прокомментить '
+                'забаненный пост %s, is_banned = %s',
+                user.username,
+                user.role,
+                post.public_id,
+                post.is_banned
+            )
             raise ValidationError('Нельзя комментировать забаненный пост')
-        return super().create(request, *args, **kwargs)
+        comment = super().create(request, *args, **kwargs)
+        logger.info(
+            'Юзер %s (%s) создал коммент %s на пост %s',
+            user.username,
+            user.role,
+            comment.public_id,
+            post.public_id,
+        )
+        return comment
 
     def list(self, request, *args, **kwargs):
         user = self.request.user
         post = get_object_or_404(Post, public_id=self.kwargs['post_id'])
         if (not user.is_authenticated or user.is_user) and post.is_banned:
+            logger.warning(
+                'Юзер %s (%s) попытался посмотреть '
+                'забаненный пост %s, is_banned = %s',
+                user.username,
+                user.role,
+                post.public_id,
+                post.is_banned
+            )
             raise NotFound('Упс... Пост не найден :(')
         return super().list(request, *args, **kwargs)
 
@@ -346,9 +395,17 @@ class VideoViewSet(
 class SearchView(APIView):
     def get(self, request):
         user = request.user
-        if user.is_authenticated and user.is_banned:
-            raise ValidationError('Забаненным доступ запрещен o_o')
         param_search = request.query_params.get('find', '')
+        if user.is_authenticated and user.is_banned:
+            logger.warning(
+                'Забаненный юзер %s (%s), is_banned = %s '
+                'попытался найти \'%s\'',
+                user.username,
+                user.role,
+                user.is_banned,
+                param_search
+            )
+            raise ValidationError('Забаненным доступ запрещен o_o')
         posts = Post.objects.filter(
             name__icontains=param_search
         ).prefetch_related(Prefetch(

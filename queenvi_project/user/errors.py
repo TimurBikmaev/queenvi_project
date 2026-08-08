@@ -1,4 +1,4 @@
-class StateValidationError(Exception):
+class AuthValidationError(Exception):
     msg = 'Не удалось выполнить вход через твич:('
 
 
