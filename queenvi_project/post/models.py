@@ -24,13 +24,13 @@ class Post(PublicIdMixin, CreatedAtMixin, UpdatedMixin):
         max_length=PostConstants.DESCRIPTION_MAX_LENGTH,
         blank=True
     )
-    is_for_stream = models.BooleanField('Подходит ли для стрима', default=True)
-    is_banned = models.BooleanField('Забанен ли', default=False)
+    is_for_stream = models.BooleanField('Для стрима', default=True)
+    is_banned = models.BooleanField('Бан', default=False)
     user = models.ForeignKey(
         User,
         on_delete=models.CASCADE,
         related_name='posts',
-        verbose_name='Посты'
+        verbose_name='Автор'
     )
 
     class Meta:
@@ -43,7 +43,7 @@ class Post(PublicIdMixin, CreatedAtMixin, UpdatedMixin):
         ]
 
     def __str__(self):
-        return (f'Post id: {self.id} | user_id: {self.user_id}')
+        return f'Пост {self.public_id} | {self.user.username}'
 
 
 class Like(models.Model):
@@ -87,13 +87,13 @@ class Comment(PublicIdMixin, CreatedAtMixin, UpdatedMixin):
         Post,
         on_delete=models.CASCADE,
         related_name='comments',
-        verbose_name='Комментарии'
+        verbose_name='Пост'
     )
     user = models.ForeignKey(
         User,
         on_delete=models.CASCADE,
         related_name='commented_posts',
-        verbose_name='Комментарии'
+        verbose_name='Автор'
     )
 
     class Meta:
@@ -105,17 +105,17 @@ class Comment(PublicIdMixin, CreatedAtMixin, UpdatedMixin):
         ]
 
     def __str__(self):
-        return (f'Comment id: {self.id} | post_id: {self.post_id}')
+        return f'Коммент {self.public_id} | {self.user.username}'
 
 
 class Report(PublicIdMixin, CreatedAtMixin, UpdatedMixin):
     reason = models.CharField(
-        'Причина жалобы',
+        'Причина',
         max_length=ReportConstants.REASON_MAX_LENGTH,
         choices=ReportReasonStatus.choices,
     )
     other = models.TextField(
-        'Текстовое описание жалобы',
+        'Другое',
         max_length=ReportConstants.OTHER_MAX_LENGTH,
         blank=True
     )
@@ -129,26 +129,26 @@ class Report(PublicIdMixin, CreatedAtMixin, UpdatedMixin):
         Post,
         on_delete=models.CASCADE,
         related_name='reports',
-        verbose_name='Жалобы'
+        verbose_name='Пост'
     )
     user = models.ForeignKey(
         User,
         on_delete=models.CASCADE,
         related_name='reports',
-        verbose_name='Отправленные жалобы'
+        verbose_name='Автор'
     )
-    moderator = models.ForeignKey(
+    moder = models.ForeignKey(
         User,
         on_delete=models.SET_NULL,
         null=True,
         blank=True,
         related_name="resolved_reports",
-        verbose_name='Рассмотренные жалобы'
+        verbose_name='Модер'
     )
 
     class Meta:
-        verbose_name = 'Жалоба'
-        verbose_name_plural = 'Жалобы'
+        verbose_name = 'Репорт'
+        verbose_name_plural = 'Репорты'
         constraints = [
             models.UniqueConstraint(
                 fields=['post', 'user'],
@@ -180,7 +180,7 @@ class Report(PublicIdMixin, CreatedAtMixin, UpdatedMixin):
         return self.status == ReportStatus.REJECTED
 
     def __str__(self):
-        return (f'Report id: {self.id} | post_id: {self.post_id}')
+        return f'Репорт {self.public_id} | {self.user.username}'
 
 
 class Media(CreatedAtMixin):

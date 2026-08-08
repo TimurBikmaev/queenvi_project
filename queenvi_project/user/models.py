@@ -13,12 +13,12 @@ class User(CreatedAtMixin, UpdatedMixin, AbstractUser):
         unique=True,
     )
     twitch_avatar = models.URLField(
-        'Ссылка на аватарку юзера из твича',
+        'Твич аватарка',
         null=True,
         blank=True
     )
     custom_avatar = models.ImageField(
-        'Кастомная аватарка юзера',
+        'Кастомная аватарка',
         upload_to=avatar_upload_to,
         null=True,
         blank=True
@@ -29,7 +29,7 @@ class User(CreatedAtMixin, UpdatedMixin, AbstractUser):
         choices=UserRole.choices,
         default=UserRole.USER,
     )
-    is_banned = models.BooleanField('Забанен ли', default=False)
+    is_banned = models.BooleanField('Бан', default=False)
 
     class Meta:
         verbose_name = 'Пользователь'
@@ -47,8 +47,8 @@ class User(CreatedAtMixin, UpdatedMixin, AbstractUser):
         self.role = UserRole.USER
         return self
 
-    def make_moderator(self):
-        self.role = UserRole.MODERATOR
+    def make_moder(self):
+        self.role = UserRole.moder
         return self
 
     @property
@@ -56,12 +56,12 @@ class User(CreatedAtMixin, UpdatedMixin, AbstractUser):
         return self.role == UserRole.USER
 
     @property
-    def is_moderator(self):
-        return self.role == UserRole.MODERATOR
+    def is_moder(self):
+        return self.role == UserRole.MODER
 
     @property
     def is_streamer(self):
         return self.role == UserRole.STREAMER
 
     def __str__(self):
-        return f'User id: {self.id} | role: {self.role}'
+        return f'{self.username} | {self.role} '
