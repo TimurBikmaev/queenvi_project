@@ -23,19 +23,18 @@ def image_file():
 
 
 @pytest.fixture
-def posts(db, users, image_file):
-    result = {}
-    for role in UserRole:
+def post_factory(db, users, image_file):
+    def create(user=users[UserRole.USER], name='test', **kwargs):
         post = Post.objects.create(
-            name=role,
-            description=role,
-            user=users[role]
+            user=user,
+            name=name,
+            **kwargs,
         )
         Media.objects.create(
+            post=post,
             file=image_file,
             file_type=ImageConstants.FORMAT,
-            post=post,
-            order=ImageConstants.FIRST_MEDIA_IDX
+            order=ImageConstants.FIRST_MEDIA_IDX,
         )
-        result[role] = post
-    return result
+        return post
+    return create
