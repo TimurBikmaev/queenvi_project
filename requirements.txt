@@ -4,6 +4,7 @@ djangorestframework==3.15
 ipython
 pillow
 pytest
+pytest-django
 python-dotenv
 requests[socks]
 ruff
