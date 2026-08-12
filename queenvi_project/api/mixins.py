@@ -39,7 +39,7 @@ class VideoSerializerMixin:
 
 class UpdateBanMixin:
     def update(self, instance, validated_data):
-        user = validated_data['request'].user
+        user = self.context['request'].user
         is_banned = validated_data.get('is_banned')
         try:
             CBSV.cannot_change_streamer_obj(instance, user)
@@ -53,7 +53,7 @@ class UpdateBanMixin:
             'Юзер %s (%s) изменил статус бана объекта %s (%s) c %s на %s',
             user.username,
             user.role,
-            instance.public_name,
+            instance.public_id,
             instance.id,
             old_is_banned,
             is_banned
