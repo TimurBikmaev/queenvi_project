@@ -25,6 +25,10 @@ class TestPostConstants:
         (UserRole.MODER),
         (UserRole.STREAMER),
     ]
+    PARAMS_STAFF = [
+        (UserRole.MODER),
+        (UserRole.STREAMER)
+    ]
     PARAMS_USER = [(None)] + PARAMS_AUTH_USER
     SECOND_POST_IDX = 1
     TWO_POSTS = 2

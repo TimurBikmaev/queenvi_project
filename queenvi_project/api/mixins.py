@@ -49,13 +49,14 @@ class UpdateBanMixin:
             raise serializers.ValidationError(str(e))
         old_is_banned = instance.is_banned
         obj = super().update(instance, validated_data)
-        logger.info(
-            'Юзер %s (%s) изменил статус бана объекта %s (%s) c %s на %s',
-            user.username,
-            user.role,
-            instance.public_id,
-            instance.id,
-            old_is_banned,
-            is_banned
-        )
+        if is_banned is not None:
+            logger.info(
+                'Юзер %s (%s) изменил статус бана объекта %s (%s) c %s на %s',
+                user.username,
+                user.role,
+                instance.public_id,
+                instance.id,
+                old_is_banned,
+                is_banned
+            )
         return obj

@@ -1,3 +1,4 @@
+from django.contrib.auth import get_user_model
 from django.db import models
 
 from core.mixins import CreatedAtMixin, PublicIdMixin, UpdatedMixin
@@ -11,7 +12,9 @@ from post.constants import (
     ReportStatus
 )
 from post.utils import MediaUtils
-from user.models import User
+
+
+User = get_user_model()
 
 
 class Post(PublicIdMixin, CreatedAtMixin, UpdatedMixin):

@@ -1,10 +1,13 @@
+from django.contrib.auth import get_user_model
 from django.db import models
 
 from core.mixins import CreatedAtMixin, PublicIdMixin, UpdatedMixin
-from user.models import User
 from youtube_suggestion.constants import (
     Category, CategoryConstants,  VideoConstants
 )
+
+
+User = get_user_model()
 
 
 class Video(CreatedAtMixin, UpdatedMixin, PublicIdMixin):

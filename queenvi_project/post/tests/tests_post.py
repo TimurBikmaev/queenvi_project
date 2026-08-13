@@ -9,6 +9,7 @@ from post.models import Post
 from post.tests.constants import (
     TestMediaConstants as TMC, TestPostConstants as TPC,
 )
+from user.constants import UserRole
 
 
 @pytest.mark.parametrize(
@@ -56,7 +57,7 @@ def test_post_create_correct(api_client, users, file_factory, role,):
 
     assert post.description == valid_post_data['description'], (
         '"description" при создании поста был '
-        f'"{valid_post_data['description']}", а стал {post.name}'
+        f'"{valid_post_data['description']}", а стал {post.description}'
     )
 
     assert post.is_for_stream == valid_post_data['is_for_stream'], (
@@ -85,19 +86,13 @@ def test_post_create_correct(api_client, users, file_factory, role,):
         )
 
 
-@pytest.mark.parametrize(
-    'role',
-    TPC.PARAMS_AUTH_USER,
-)
-def test_post_create_default_value(
-    api_client, users, file_factory, role,
-):
+def test_post_create_default_value(api_client, users, file_factory):
     valid_post_data = {
         'name': 'test',
         'create_media': [file_factory()],
     }
 
-    api_client.force_authenticate(user=users[role])
+    api_client.force_authenticate(user=users[UserRole.USER])
     response = api_client.post(
         reverse('posts-list'),
         valid_post_data,
@@ -154,17 +149,13 @@ def test_post_create_required_fields(
     )
 
 
-@pytest.mark.parametrize(
-    'role',
-    TPC.PARAMS_AUTH_USER,
-)
-def test_post_create_incorrect_name(api_client, users, file_factory, role):
+def test_post_create_incorrect_name(api_client, users, file_factory):
     invalid_post_data = {
         'name': 't' * PostConstants.NAME_MAX_LENGTH + 't',
         'create_media': [file_factory()],
     }
 
-    api_client.force_authenticate(user=users[role])
+    api_client.force_authenticate(user=users[UserRole.USER])
     response = api_client.post(
         reverse('posts-list'),
         invalid_post_data,
@@ -176,20 +167,14 @@ def test_post_create_incorrect_name(api_client, users, file_factory, role):
     )
 
 
-@pytest.mark.parametrize(
-    'role',
-    TPC.PARAMS_AUTH_USER,
-)
-def test_post_create_incorrect_description(
-    api_client, users, file_factory, role
-):
+def test_post_create_incorrect_description(api_client, users, file_factory):
     invalid_post_data = {
         'name': 'test',
         'description': 't' * PostConstants.DESCRIPTION_MAX_LENGTH + 't',
         'create_media': [file_factory()],
     }
 
-    api_client.force_authenticate(user=users[role])
+    api_client.force_authenticate(user=users[UserRole.USER])
     response = api_client.post(
         reverse('posts-list'),
         invalid_post_data,
@@ -202,17 +187,13 @@ def test_post_create_incorrect_description(
     )
 
 
-@pytest.mark.parametrize(
-    'role',
-    TPC.PARAMS_AUTH_USER,
-)
-def test_post_create_incorrect_files_min_count(api_client, users, role):
+def test_post_create_incorrect_files_min_count(api_client, users):
     invalid_post_data = {
         'name': 'test',
         'create_media': [],
     }
 
-    api_client.force_authenticate(user=users[role])
+    api_client.force_authenticate(user=users[UserRole.USER])
     response = api_client.post(
         reverse('posts-list'),
         invalid_post_data,
@@ -224,12 +205,8 @@ def test_post_create_incorrect_files_min_count(api_client, users, role):
     )
 
 
-@pytest.mark.parametrize(
-    'role',
-    TPC.PARAMS_AUTH_USER,
-)
 def test_post_create_incorrect_files_max_count(
-    api_client, users, file_factory, role
+        api_client, users, file_factory
 ):
     invalid_post_data = {
         'name': 'test',
@@ -239,7 +216,7 @@ def test_post_create_incorrect_files_max_count(
         ],
     }
 
-    api_client.force_authenticate(user=users[role])
+    api_client.force_authenticate(user=users[UserRole.USER])
     response = api_client.post(
         reverse('posts-list'),
         invalid_post_data,
@@ -251,19 +228,13 @@ def test_post_create_incorrect_files_max_count(
     )
 
 
-@pytest.mark.parametrize(
-    'role',
-    TPC.PARAMS_AUTH_USER,
-)
-def test_post_create_incorrect_file_format(
-    api_client, users, file_factory, role
-):
+def test_post_create_incorrect_file_format(api_client, users, file_factory):
     invalid_post_data = {
         'name': 'test',
         'create_media': [file_factory(name='test.txt')],
     }
 
-    api_client.force_authenticate(user=users[role])
+    api_client.force_authenticate(user=users[UserRole.USER])
     response = api_client.post(
         reverse('posts-list'),
         invalid_post_data,
@@ -280,8 +251,12 @@ def test_post_create_incorrect_file_format(
     'role',
     TPC.PARAMS_AUTH_USER,
 )
-def test_post_create_is_banned_change(api_client, users, file_factory, role):
+def test_post_create_public_id_and_is_banned_change(
+    api_client, users, file_factory, role
+):
+    request_public_id = 'тест'
     valid_post_data = {
+        'public_id': request_public_id,
         'name': 'test',
         'is_banned': True,
         'create_media': [file_factory()],
@@ -297,6 +272,9 @@ def test_post_create_is_banned_change(api_client, users, file_factory, role):
     assert response.status_code == HTTPStatus.CREATED
 
     post = Post.objects.get(public_id=response.data['public_id'])
+    assert post.public_id != request_public_id, (
+        'Нельзя менять статус "public_id" при создании поста'
+    )
     assert post.is_banned is False, (
         'Нельзя менять статус бана при создании поста'
     )
