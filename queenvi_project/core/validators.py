@@ -9,7 +9,7 @@ logger = logging.getLogger(__name__)
 class ChangeBanStatusValidator:
     def cannot_unban_obj_of_banned_user(obj, user):
         """Нельзя разбанить объект забаненного пользователя."""
-        if obj.user.is_banned and obj.is_banned is True:
+        if obj.user.is_banned is True and obj.is_banned is True:
             logger.warning(
                 'Юзер %s (%s) попытался разбанить объект %s '
                 'забаненного юзера %s (%s), is_banned=%s',

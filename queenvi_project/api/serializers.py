@@ -166,14 +166,14 @@ class PostSerializer(ShortPostSerializer):
         max_length=cs.PostConstants.MEDIA_MAX_COUNT,
         write_only=True
     )
-    list_media = MediaSerializer(
-        source='media',
+    media = MediaSerializer(
         many=True,
-        read_only=True
+        read_only=True,
+        source='list_media',
     )
 
     class Meta(ShortPostSerializer.Meta):
-        fields = SC.POST_BASE_FIELDS + ['create_media', 'list_media']
+        fields = SC.POST_BASE_FIELDS + ['create_media', 'media']
 
     def check_media_data(self, files):
         try:
@@ -186,7 +186,10 @@ class PostSerializer(ShortPostSerializer):
         files = validated_data.pop('create_media')
         media_data = self.check_media_data(files)
         post = Post.objects.create(**validated_data)
-        Media.objects.bulk_create(
+        post.likes_count = cs.PostConstants.NO_LIKES
+        post.comments_count = cs.PostConstants.NO_COMMENTS
+        post.is_liked = False
+        post.list_media = Media.objects.bulk_create(
             Media(post=post, **data)
             for data in media_data
         )
@@ -234,8 +237,8 @@ class PostSerializer(ShortPostSerializer):
 class ModerationPostSerializer(mx.UpdateBanMixin, mx.BaseSerializerMixin):
     """Отображение и редактирование поста для модератора."""
     user = ShortProfileSerializer(read_only=True)
-    list_media = MediaSerializer(
-        source='media',
+    media = MediaSerializer(
+        source='list_media',
         many=True,
         read_only=True
     )
@@ -244,7 +247,7 @@ class ModerationPostSerializer(mx.UpdateBanMixin, mx.BaseSerializerMixin):
     is_liked = serializers.ReadOnlyField()
 
     class Meta(ModerationShortPostSerializer.Meta):
-        fields = SC.POST_BASE_FIELDS + ['list_media', 'is_banned']
+        fields = SC.POST_BASE_FIELDS + ['media', 'is_banned']
         read_only_fields = [
             'public_id', 'name', 'description', 'is_for_stream'
         ]

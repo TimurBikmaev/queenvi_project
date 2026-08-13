@@ -187,26 +187,39 @@ class PostViewSet(HttpLookupMixin, ModelViewSet):
 
     def get_queryset(self):
         user = self.request.user
+
         queryset = get_queryset_by_filter_is_banned(
             user, self.request, Post, self.action
         )
+
         is_liked_value = Value(False)
         if user.is_authenticated:
             is_liked_value = Exists(Like.objects.filter(
                 post=OuterRef('pk'),
                 user=self.request.user
             ))
+
         queryset = queryset.annotate(
             likes_count=Count('likes', distinct=True),
             comments_count=Count('comments', distinct=True),
             is_liked=is_liked_value
         )
+
         if self.action == 'list':
             queryset = queryset.prefetch_related(Prefetch(
                 'media',
                 queryset=Media.objects.filter(order=MC.PREVIEW_ORDER),
                 to_attr='preview_media'
             ))
+        elif self.action == 'retrieve':
+            queryset = queryset.prefetch_related(
+                Prefetch(
+                    'media',
+                    queryset=Media.objects.order_by('order'),
+                    to_attr='list_media',
+                )
+            )
+
         return queryset
 
     def perform_create(self, serializer):
