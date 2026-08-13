@@ -1,29 +1,29 @@
-from io import BytesIO
-
 from django.core.files.uploadedfile import SimpleUploadedFile
-from PIL import Image
 import pytest
 
-from post.tests.constants import ImageConstants
+from post.tests.constants import TestMediaConstants as TMC
 from post.models import Media, Post
 from user.constants import UserRole
 
 
 @pytest.fixture
-def image_file():
-    image = Image.new('RGB', (ImageConstants.RESOLUTION))
-    buffer = BytesIO()
-    image.save(buffer, format=ImageConstants.FORMAT)
-    buffer.seek(ImageConstants.READ_FILE_FROM_BEGIN)
-    return SimpleUploadedFile(
+def file_factory():
+    def create(
         name='test.jpg',
-        content=buffer.read(),
-        content_type=ImageConstants.CONTENT_TYPE,
-    )
+        content=b'test',
+        content_type='image/jpeg',
+    ):
+        return SimpleUploadedFile(
+            name=name,
+            content=content,
+            content_type=content_type,
+        )
+
+    return create
 
 
 @pytest.fixture
-def post_factory(db, users, image_file):
+def post_factory(db, users, file_factory):
     def create(user=users[UserRole.USER], name='test', **kwargs):
         post = Post.objects.create(
             user=user,
@@ -32,9 +32,32 @@ def post_factory(db, users, image_file):
         )
         Media.objects.create(
             post=post,
-            file=image_file,
-            file_type=ImageConstants.FORMAT,
-            order=ImageConstants.FIRST_MEDIA_IDX,
+            file=file_factory(),
+            file_type=TMC.FORMAT,
+            order=TMC.FIRST_MEDIA_IDX,
         )
         return post
     return create
+
+
+@pytest.fixture
+def post_many_files(users, file_factory):
+    post = Post.objects.create(
+        user=users[UserRole.USER],
+        name='test',
+        description='12345678910',
+    )
+
+    Media.objects.bulk_create([
+        Media(
+            post=post,
+            file=file_factory(name=f'{idx}'),
+            file_type=TMC.FORMAT,
+            order=idx,
+        )
+        for idx in (
+            TMC.THIRD_MEDIA_IDX, TMC.SECOND_MEDIA_IDX, TMC.FIRST_MEDIA_IDX
+        )
+    ])
+
+    return post

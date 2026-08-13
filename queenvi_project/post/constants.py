@@ -8,6 +8,8 @@ class PostConstants:
     MEDIA_MIN_COUNT = 1
     NAME_MAX_LENGTH = 100
     NAME_PROFILEMAX_LENGTH = 10
+    NO_COMMENTS = 0
+    NO_LIKES = 0
 
 
 class CommentConstansts:

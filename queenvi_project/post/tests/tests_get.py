@@ -5,16 +5,21 @@ import pytest
 
 from api.constants import SerializersConstants
 from post.constants import PostConstants
-from post.models import Comment, Like, Media
+from post.models import Comment, Like
 from post.tests.constants import (
-    ImageConstants as IC, MessageConstants, TestPostConstants as TPC,
+    TestMediaConstants as TMC, MessageConstants, TestPostConstants as TPC,
 )
 from user.constants import UserRole
 
 
 @pytest.mark.parametrize(
     'role, has_private_field',
-    TPC.PRIVATE_FIELDS_PARAMS,
+    [
+        (None, False),
+        (UserRole.USER, False),
+        (UserRole.MODER, True),
+        (UserRole.STREAMER, True),
+    ],
 )
 def test_post_list_correct(
     api_client, users, post_factory, role, has_private_field
@@ -49,12 +54,12 @@ def test_post_list_correct(
         )
 
         assert len(post['name']) <= PostConstants.NAME_PROFILEMAX_LENGTH, (
-            'Длина "name" в ответе превышает допустимую'
+            'Длина "name" у постов в профиле превышает допустимую'
         )
         assert (
             len(post['description'])
             <= PostConstants.DESCRIPTION_PROFILE_MAX_LENGTH
-        ), 'Длина "description" в ответе превышает допустимую'
+        ), 'Длина "description" у постов в профиле превышает допустимую'
 
         assert ('is_banned' in post) is has_private_field, (
             f'Видимость "is_banned" для юзера {role} - {'is_banned' in post}, '
@@ -63,8 +68,27 @@ def test_post_list_correct(
 
 
 @pytest.mark.parametrize(
+    'role',
+    TPC.PARAMS_USER,
+)
+def test_post_list_preview_order(
+    api_client, users, role, post_many_files
+):
+    if role is not None:
+        api_client.force_authenticate(user=users[role])
+    response = api_client.get(reverse('posts-list'))
+
+    response_preview = response.data[TMC.FIRST_MEDIA_IDX]['preview']
+    post_preview = post_many_files.media.order_by('order').first()
+
+    assert response_preview['file'].endswith(post_preview.file.name), (
+        'Превью должно быть первым файлом, загруженным юзером'
+    )
+
+
+@pytest.mark.parametrize(
     'role, value',
-    TPC.FILTER_PARAMS,
+    TPC.PARAMS_FILTER,
 )
 def test_post_list_is_liked_correct(
     api_client, users, post_factory, role, value
@@ -96,7 +120,7 @@ def test_post_list_is_liked_correct(
 
 @pytest.mark.parametrize(
     'role, value',
-    TPC.FILTER_PARAMS,
+    TPC.PARAMS_FILTER,
 )
 def test_post_list_filter_is_for_stream(
     api_client, users, post_factory, role, value
@@ -118,7 +142,7 @@ def test_post_list_filter_is_for_stream(
 
 @pytest.mark.parametrize(
     'role, value',
-    TPC.FILTER_PARAMS + [
+    TPC.PARAMS_FILTER + [
         (None, 'all'),
         (UserRole.USER, 'all'),
         (UserRole.MODER, 'all'),
@@ -158,7 +182,7 @@ def test_post_list_filter_is_banned(
 
 @pytest.mark.parametrize(
     'role',
-    TPC.USER_PARAMS,
+    TPC.PARAMS_USER,
 )
 def test_post_list_ordering_likes_comments_count(
     api_client, users, post_factory, role
@@ -195,44 +219,31 @@ def test_post_list_ordering_likes_comments_count(
 
 @pytest.mark.parametrize(
     'role',
-    TPC.USER_PARAMS,
+    TPC.PARAMS_USER,
 )
-def test_post_retrieve_correct(
-    api_client, users, post_factory, image_file, role,
-):
-    post = post_factory(description='12345678910')
-    Media.objects.bulk_create([
-        Media(
-            post=post,
-            file=image_file,
-            file_type=IC.FORMAT,
-            order=order,
-        )
-        for order in range(IC.ONE_MEDIA, IC.THREE_MEDIA)
-    ])
-
+def test_post_retrieve_correct(api_client, users, role, post_many_files):
     if role is not None:
         api_client.force_authenticate(user=users[role])
-    response = api_client.get(reverse('posts-detail', args=[post.public_id]))
+    response = api_client.get(
+        reverse('posts-detail', args=[post_many_files.public_id])
+    )
 
     assert response.status_code == HTTPStatus.OK
 
-    post_fields = [*SerializersConstants.POST_BASE_FIELDS, 'list_media']
+    post_fields = [*SerializersConstants.POST_BASE_FIELDS, 'media']
     assert set(post_fields) <= response.data.keys(), (
         f'В посте отсутствуют поля {set(post_fields) - response.data.keys()}'
     )
 
-    list_media = response.data['list_media']
-    assert (
-        list_media[IC.FIRST_MEDIA_IDX]['order'] == IC.FIRST_MEDIA_IDX
-        and list_media[IC.SECOND_MEDIA_IDX]['order'] == IC.SECOND_MEDIA_IDX
-        and list_media[IC.THIRD_MEDIA_IDX]['order'] == IC.THIRD_MEDIA_IDX
-    ), 'Медиа в посте должны находиться в порядке, в котором их загружали'
+    files = response.data['media']
+    assert [file['order'] for file in files] == [
+        TMC.FIRST_MEDIA_IDX, TMC.SECOND_MEDIA_IDX, TMC.THIRD_MEDIA_IDX
+    ], 'Медиа в посте должны находиться в порядке, в котором их загружали'
 
 
 @pytest.mark.parametrize(
     'role',
-    TPC.USER_PARAMS,
+    TPC.PARAMS_USER,
 )
 def test_post_retrieve_banned_for_moder_or_streamer(
     api_client, users, post_factory, role
@@ -257,7 +268,7 @@ def test_post_retrieve_banned_for_moder_or_streamer(
 
 @pytest.mark.parametrize(
     'role',
-    TPC.USER_PARAMS,
+    TPC.PARAMS_USER,
 )
 def test_post_retrieve_without_empty_string(
     api_client, users, post_factory, role
@@ -275,7 +286,7 @@ def test_post_retrieve_without_empty_string(
 
 @pytest.mark.parametrize(
     'role, value',
-    TPC.FILTER_PARAMS,
+    TPC.PARAMS_FILTER,
 )
 def test_post_retrieve_is_liked_correct(
     api_client, users, post_factory, role, value
