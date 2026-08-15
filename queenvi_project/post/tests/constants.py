@@ -1,4 +1,3 @@
-from user.constants import UserRole
 
 
 class TestLikeConstants:

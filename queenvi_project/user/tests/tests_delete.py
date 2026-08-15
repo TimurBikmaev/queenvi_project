@@ -5,8 +5,6 @@ from django.urls import reverse
 import pytest
 
 from core.constants import TestConstants
-from post.models import Post
-from user.constants import UserRole
 
 
 User = get_user_model()
