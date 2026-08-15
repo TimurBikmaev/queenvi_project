@@ -8,7 +8,7 @@ from post.constants import (
     MediaType,
     PostConstants,
     ReportConstants,
-    ReportReasonStatus,
+    ReportReason,
     ReportStatus
 )
 from post.utils import MediaUtils
@@ -115,7 +115,7 @@ class Report(PublicIdMixin, CreatedAtMixin, UpdatedMixin):
     reason = models.CharField(
         'Причина',
         max_length=ReportConstants.REASON_MAX_LENGTH,
-        choices=ReportReasonStatus.choices,
+        choices=ReportReason.choices,
     )
     other = models.TextField(
         'Другое',

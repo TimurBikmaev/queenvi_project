@@ -43,14 +43,14 @@ class ChangeUserValidator:
             )
             raise ChangeUserValidationError(role=True)
 
-    def can_user_change_is_banned(user, target):
-        """Модер может забанить или разбанить только обычного юзера."""
+    def can_user_change_other_user(user, target):
+        """Модер может менять только обычного юзера."""
         if user.is_moder and not target.is_user:
             logger.warning(
-                'Юзер %s | %s попытался изменить статус бана юзера %s | %s',
+                'Юзер %s | %s попытался изменить юзера %s | %s',
                 user.username,
                 user.role,
                 target.username,
                 target.role
             )
-            raise ChangeUserValidationError(is_banned=True)
+            raise ChangeUserValidationError(staff=True)

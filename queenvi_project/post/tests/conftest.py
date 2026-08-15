@@ -1,17 +1,22 @@
 from django.core.files.uploadedfile import SimpleUploadedFile
 import pytest
 
+from post.constants import ReportReason, ReportStatus
 from post.tests.constants import TestMediaConstants as TMC
-from post.models import Media, Post
+from post.models import Media, Post, Report
 from user.constants import UserRole
 
 
 @pytest.fixture
-def file_factory():
+def file_factory(
+    name='test.jpg',
+    content=b'test',
+    content_type='image/jpeg'
+):
     def create(
-        name='test.jpg',
-        content=b'test',
-        content_type='image/jpeg',
+        name=name,
+        content=content,
+        content_type=content_type,
     ):
         return SimpleUploadedFile(
             name=name,
@@ -28,7 +33,7 @@ def post_factory(db, users, file_factory):
         post = Post.objects.create(
             user=user,
             name=name,
-            **kwargs,
+            ** kwargs,
         )
         Media.objects.create(
             post=post,
@@ -61,3 +66,21 @@ def post_many_files(users, file_factory):
     ])
 
     return post
+
+
+@pytest.fixture
+def report_factory(db, users, post_factory):
+    def create(
+            user=users[UserRole.USER],
+            reason=ReportReason.SPAM,
+            other='',
+            status=ReportStatus.NOT_VIEWED,
+    ):
+        return Report.objects.create(
+            user=user,
+            post=post_factory(),
+            reason=reason,
+            status=status,
+            other=other,
+        )
+    return create

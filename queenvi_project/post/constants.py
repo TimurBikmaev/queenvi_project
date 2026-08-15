@@ -22,7 +22,7 @@ class ReportStatus(TextChoices):
     REJECTED = 'rejected', 'Отменена'
 
 
-class ReportReasonStatus(TextChoices):
+class ReportReason(TextChoices):
     ADULT = 'adult', 'Контент 18+'
     ILLEGAL = 'illegal', 'Незаконный'
     ADVERTISING = 'advertising', 'Реклама'
@@ -40,10 +40,11 @@ class ReportConstants:
         'дружелюбнее :)'
     )
     MSG_OTHER_WITHOUT_REASON = (
-        'Нужно выбрать \'другое\' для отправки текстовой жалобы :)'
+        'Чтобы отправить текстовую жалобу нужно выбрать причину \'другое\' '
+        'и отправить текст жалобы в поле \'other\' :)'
     )
     MSG_STATUS_TO_NOT_VIEWED = (
-        'Если репорт рассмотрен, то его нельзя определить нерассмотренным!'
+        'Репорт нельзя определить нерассмотренным!'
     )
     OTHER_MAX_LENGTH = 700
     REASON_MAX_LENGTH = 20

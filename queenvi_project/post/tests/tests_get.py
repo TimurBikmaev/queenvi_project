@@ -1,9 +1,12 @@
+from datetime import timedelta
 from http import HTTPStatus
 
 from django.urls import reverse
+from django.utils import timezone
 import pytest
 
 from api.constants import SerializersConstants
+from core.constants import TestConstants
 from post.constants import PostConstants
 from post.models import Comment, Like
 from post.tests.constants import (
@@ -26,7 +29,9 @@ def test_post_list_correct(
 ):
     post_factory(name='empty_desc')
     post_factory(is_banned=True)
-    post_factory(description='12345678910')
+    post = post_factory(description='12345678910')
+    post.created_at = timezone.now() - timedelta(days=TPC.DELTA_TWO_DAYS)
+    post.save(update_fields=['created_at'])
 
     if role is not None:
         api_client.force_authenticate(user=users[role])
@@ -67,16 +72,8 @@ def test_post_list_correct(
         )
 
 
-@pytest.mark.parametrize(
-    'role',
-    TPC.PARAMS_USER,
-)
-def test_post_list_preview_order(
-    api_client, users, role, post_many_files
-):
-    if role is not None:
-        api_client.force_authenticate(user=users[role])
-    response = api_client.get(reverse('posts-list'))
+def test_post_list_preview_order(auth, post_many_files):
+    response = auth.get(reverse('posts-list'))
 
     response_preview = response.data[TMC.FIRST_MEDIA_IDX]['preview']
     post_preview = post_many_files.media.order_by('order').first()
@@ -87,8 +84,12 @@ def test_post_list_preview_order(
 
 
 @pytest.mark.parametrize(
-    'role, value',
-    TPC.PARAMS_FILTER,
+    'role',
+    TestConstants.PARAMS_NOT_STAFF,
+)
+@pytest.mark.parametrize(
+    'value',
+    [True, False],
 )
 def test_post_list_is_liked_correct(
     api_client, users, post_factory, role, value
@@ -119,18 +120,14 @@ def test_post_list_is_liked_correct(
 
 
 @pytest.mark.parametrize(
-    'role, value',
-    TPC.PARAMS_FILTER,
+    'value',
+    [True, False],
 )
-def test_post_list_filter_is_for_stream(
-    api_client, users, post_factory, role, value
-):
+def test_post_list_filter_is_for_stream(auth, post_factory, value):
     post_factory(is_for_stream=False)
     post_factory()
 
-    if role is not None:
-        api_client.force_authenticate(user=users[role])
-    response = api_client.get(reverse('posts-list'), {'is_for_stream': value})
+    response = auth.get(reverse('posts-list'), {'is_for_stream': value})
 
     assert len(response.data) == TPC.ONE_POST, (
         'Фильтр is_for_stream не работает'
@@ -141,13 +138,12 @@ def test_post_list_filter_is_for_stream(
 
 
 @pytest.mark.parametrize(
-    'role, value',
-    TPC.PARAMS_FILTER + [
-        (None, 'all'),
-        (UserRole.USER, 'all'),
-        (UserRole.MODER, 'all'),
-        (UserRole.STREAMER, 'all'),
-    ],
+    'role',
+    TestConstants.PARAMS_USERS,
+)
+@pytest.mark.parametrize(
+    'value',
+    [True, 'all'],
 )
 def test_post_list_filter_is_banned(
     api_client, users, post_factory, role, value
@@ -180,25 +176,17 @@ def test_post_list_filter_is_banned(
     )
 
 
-@pytest.mark.parametrize(
-    'role',
-    TPC.PARAMS_USER,
-)
-def test_post_list_ordering_likes_comments_count(
-    api_client, users, post_factory, role
-):
+def test_post_list_ordering_likes_comments_count(users, auth, post_factory):
     post_factory()
     post = post_factory()
     Like.objects.create(post=post, user=users[UserRole.USER])
     Comment.objects.create(post=post, user=users[UserRole.USER])
 
-    if role is not None:
-        api_client.force_authenticate(user=users[role])
-    response_likes = api_client.get(
+    response_likes = auth.get(
         reverse('posts-list'),
         {'ordering': '-likes_count'}
     )
-    response_comments = api_client.get(
+    response_comments = auth.get(
         reverse('posts-list'),
         {'ordering': '-comments_count'}
     )
@@ -219,7 +207,25 @@ def test_post_list_ordering_likes_comments_count(
 
 @pytest.mark.parametrize(
     'role',
-    TPC.PARAMS_USER,
+    TestConstants.PARAMS_BANNED_USERS,
+)
+def test_post_list_by_banned(api_client, users, post_factory, role):
+    users[role].is_banned = True
+    users[role].save(update_fields=['is_banned'])
+
+    post_factory()
+
+    api_client.force_authenticate(user=users[role])
+    response = api_client.get(reverse('posts-list'))
+
+    assert response.status_code == HTTPStatus.FORBIDDEN, (
+        'Забаненный юзер не может смотреть список постов'
+    )
+
+
+@pytest.mark.parametrize(
+    'role',
+    TestConstants.PARAMS_USERS,
 )
 def test_post_retrieve_correct(api_client, users, role, post_many_files):
     if role is not None:
@@ -243,11 +249,9 @@ def test_post_retrieve_correct(api_client, users, role, post_many_files):
 
 @pytest.mark.parametrize(
     'role',
-    TPC.PARAMS_USER,
+    TestConstants.PARAMS_USERS,
 )
-def test_post_retrieve_banned_for_moder_or_streamer(
-    api_client, users, post_factory, role
-):
+def test_post_retrieve_banned_for_users(api_client, users, post_factory, role):
     post = post_factory(is_banned=True)
 
     if role is not None:
@@ -262,22 +266,14 @@ def test_post_retrieve_banned_for_moder_or_streamer(
 
     assert response.status_code == HTTPStatus.OK
     assert response.data['is_banned'] is True, (
-        f'Юзеру {role} должен видеть статус бана поста'
+        f'Юзеру {role} должен иметь возможность видеть забаненный пост'
     )
 
 
-@pytest.mark.parametrize(
-    'role',
-    TPC.PARAMS_USER,
-)
-def test_post_retrieve_without_empty_string(
-    api_client, users, post_factory, role
-):
+def test_post_retrieve_without_empty_string(auth, post_factory):
     post = post_factory()
 
-    if role is not None:
-        api_client.force_authenticate(user=users[role])
-    response = api_client.get(reverse('posts-detail', args=[post.public_id]))
+    response = auth.get(reverse('posts-detail', args=[post.public_id]))
 
     assert 'description' not in response.data.keys(), (
         'Пустые строки не должны возвращаться в ответе'
@@ -285,8 +281,12 @@ def test_post_retrieve_without_empty_string(
 
 
 @pytest.mark.parametrize(
-    'role, value',
-    TPC.PARAMS_FILTER,
+    'role',
+    TestConstants.PARAMS_USERS,
+)
+@pytest.mark.parametrize(
+    'value',
+    [True, False],
 )
 def test_post_retrieve_is_liked_correct(
     api_client, users, post_factory, role, value
@@ -315,4 +315,22 @@ def test_post_retrieve_is_liked_correct(
 
     assert post_detail.data['is_liked'] is False, (
         MessageConstants.IS_LIKED_FALSE
+    )
+
+
+@pytest.mark.parametrize(
+    'role',
+    TestConstants.PARAMS_BANNED_USERS,
+)
+def test_post_retrieve_by_banned(api_client, users, post_factory, role):
+    users[role].is_banned = True
+    users[role].save(update_fields=['is_banned'])
+
+    post = post_factory()
+
+    api_client.force_authenticate(user=users[role])
+    response = api_client.get(reverse('posts-detail', args=[post.public_id]))
+
+    assert response.status_code == HTTPStatus.FORBIDDEN, (
+        'Забаненный юзер не может смотреть пост'
     )

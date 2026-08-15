@@ -4,17 +4,15 @@ from django.urls import reverse
 import pytest
 
 from api.constants import SerializersConstants
+from core.constants import TestConstants
 from post.constants import MediaConstants as MC, MediaType, PostConstants
 from post.models import Post
-from post.tests.constants import (
-    TestMediaConstants as TMC, TestPostConstants as TPC,
-)
-from user.constants import UserRole
+from post.tests.constants import TestMediaConstants as TMC
 
 
 @pytest.mark.parametrize(
     'role',
-    TPC.PARAMS_USER,
+    TestConstants.PARAMS_USERS,
 )
 def test_post_create_correct(api_client, users, file_factory, role,):
     valid_post_data = {
@@ -86,14 +84,43 @@ def test_post_create_correct(api_client, users, file_factory, role,):
         )
 
 
-def test_post_create_default_value(api_client, users, file_factory):
+@pytest.mark.parametrize(
+    'name, content_type',
+    [
+        ('test.mp4', 'video/mp4'),
+        ('test.mp3', 'audio/mpeg'),
+    ],
+)
+def test_post_create_video_audio(auth, file_factory, name, content_type):
+    response = auth.post(
+        reverse('posts-list'),
+        {
+            'name': 'test',
+            'create_media': [
+                file_factory(name=name, content_type=content_type),
+            ]
+        },
+        format='multipart',
+    )
+
+    assert response.status_code == HTTPStatus.CREATED, (
+        'При создании поста должна быть возможность загружать: '
+        f'{MC.FORMAT_AUDIO} + {MC.FORMAT_PHOTO} + {MC.FORMAT_VIDEO}'
+    )
+
+    media = response.data['media'][TMC.FIRST_MEDIA_IDX]
+    assert media['file'].endswith(f'.{name.split(".")[TMC.EXTENSION_IDX]}'), (
+        'При создании был отправлен один файл, а посту присвоился другой'
+    )
+
+
+def test_post_create_default_value(auth, file_factory):
     valid_post_data = {
         'name': 'test',
         'create_media': [file_factory()],
     }
 
-    api_client.force_authenticate(user=users[UserRole.USER])
-    response = api_client.post(
+    response = auth.post(
         reverse('posts-list'),
         valid_post_data,
         format='multipart',
@@ -124,7 +151,7 @@ def test_post_create_default_value(api_client, users, file_factory):
 )
 @pytest.mark.parametrize(
     'role',
-    TPC.PARAMS_AUTH_USER,
+    TestConstants.PARAMS_AUTH_USERS,
 )
 def test_post_create_required_fields(
     api_client, users, field, role, file_factory
@@ -149,14 +176,13 @@ def test_post_create_required_fields(
     )
 
 
-def test_post_create_incorrect_name(api_client, users, file_factory):
+def test_post_create_incorrect_name(auth, file_factory):
     invalid_post_data = {
         'name': 't' * PostConstants.NAME_MAX_LENGTH + 't',
         'create_media': [file_factory()],
     }
 
-    api_client.force_authenticate(user=users[UserRole.USER])
-    response = api_client.post(
+    response = auth.post(
         reverse('posts-list'),
         invalid_post_data,
         format='multipart',
@@ -167,15 +193,14 @@ def test_post_create_incorrect_name(api_client, users, file_factory):
     )
 
 
-def test_post_create_incorrect_description(api_client, users, file_factory):
+def test_post_create_incorrect_description(auth, file_factory):
     invalid_post_data = {
         'name': 'test',
         'description': 't' * PostConstants.DESCRIPTION_MAX_LENGTH + 't',
         'create_media': [file_factory()],
     }
 
-    api_client.force_authenticate(user=users[UserRole.USER])
-    response = api_client.post(
+    response = auth.post(
         reverse('posts-list'),
         invalid_post_data,
         format='multipart',
@@ -187,14 +212,13 @@ def test_post_create_incorrect_description(api_client, users, file_factory):
     )
 
 
-def test_post_create_incorrect_files_min_count(api_client, users):
+def test_post_create_incorrect_files_min_count(auth):
     invalid_post_data = {
         'name': 'test',
         'create_media': [],
     }
 
-    api_client.force_authenticate(user=users[UserRole.USER])
-    response = api_client.post(
+    response = auth.post(
         reverse('posts-list'),
         invalid_post_data,
         format='multipart',
@@ -205,9 +229,7 @@ def test_post_create_incorrect_files_min_count(api_client, users):
     )
 
 
-def test_post_create_incorrect_files_max_count(
-        api_client, users, file_factory
-):
+def test_post_create_incorrect_files_max_count(auth, file_factory):
     invalid_post_data = {
         'name': 'test',
         'create_media': [
@@ -216,8 +238,7 @@ def test_post_create_incorrect_files_max_count(
         ],
     }
 
-    api_client.force_authenticate(user=users[UserRole.USER])
-    response = api_client.post(
+    response = auth.post(
         reverse('posts-list'),
         invalid_post_data,
         format='multipart',
@@ -228,14 +249,13 @@ def test_post_create_incorrect_files_max_count(
     )
 
 
-def test_post_create_incorrect_file_format(api_client, users, file_factory):
+def test_post_create_incorrect_file_format(auth, file_factory):
     invalid_post_data = {
         'name': 'test',
         'create_media': [file_factory(name='test.txt')],
     }
 
-    api_client.force_authenticate(user=users[UserRole.USER])
-    response = api_client.post(
+    response = auth.post(
         reverse('posts-list'),
         invalid_post_data,
         format='multipart',
@@ -249,7 +269,7 @@ def test_post_create_incorrect_file_format(api_client, users, file_factory):
 
 @pytest.mark.parametrize(
     'role',
-    TPC.PARAMS_AUTH_USER,
+    TestConstants.PARAMS_AUTH_USERS,
 )
 def test_post_create_public_id_and_is_banned_change(
     api_client, users, file_factory, role
@@ -277,4 +297,26 @@ def test_post_create_public_id_and_is_banned_change(
     )
     assert post.is_banned is False, (
         'Нельзя менять статус бана при создании поста'
+    )
+
+
+@pytest.mark.parametrize(
+    'role',
+    TestConstants.PARAMS_BANNED_USERS,
+)
+def test_post_create_by_banned(api_client, users, file_factory, role):
+    users[role].is_banned = True
+    users[role].save(update_fields=['is_banned'])
+
+    api_client.force_authenticate(user=users[role])
+    response = api_client.post(
+        reverse('posts-list'),
+        {
+            'name': 'test',
+            'create_media': file_factory()
+        }
+    )
+
+    assert response.status_code == HTTPStatus.FORBIDDEN, (
+        'Забаненный юзер не может создать пост'
     )
