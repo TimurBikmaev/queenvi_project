@@ -1,6 +1,11 @@
 from user.constants import UserRole
 
 
+class TestVoteConstants:
+    NO_VOTES = 0
+    ONE_VOTE = 1
+
+
 class TestVideoConstants:
     COUNT_COMMENTS = 100
     COUNT_LIKES = 100
