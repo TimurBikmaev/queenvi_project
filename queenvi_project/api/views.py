@@ -338,8 +338,15 @@ class ReportViewSet(
     permission_classes = [NotBannedAllowAny, IsModerOrStreamer]
     filter_backends = [DjangoFilterBackend, OrderingFilter]
     filterset_fields = ['status']
-    ordering_fields = ['created_at']
     ordering = ['-created_at']
+
+    def get_queryset(self):
+        queryset = Report.objects.all()
+
+        if 'status' not in self.request.query_params:
+            queryset = queryset.filter(status='not_viewed')
+
+        return queryset
 
 
 class VideoViewSet(
@@ -351,24 +358,36 @@ class VideoViewSet(
     queryset = Video.objects.all()
     filter_backends = [DjangoFilterBackend, OrderingFilter]
     filterset_fields = ['category']
-    orfering_fields = ['created_at', 'votings_count']
+    ordering_fields = ['created_at']
     ordering = ['-votings_count']
 
     def get_serializer_class(self):
         user = self.request.user
-        if user.is_authenticated and not user.is_user:
-            if self.action == 'create':
+
+        if (
+            (not user.is_authenticated or user.is_user)
+            or self.action == 'create'
+        ):
+            return serializers.VideoSerializer
+
+        elif self.action == 'partial_update':
+            if self.get_object().user == user:
                 return serializers.VideoSerializer
-            elif self.action == 'partial_update':
-                if self.get_object().user == user:
-                    return serializers.VideoSerializer
-            return serializers.ModerationVideoSerializer
-        return serializers.VideoSerializer
+
+        return serializers.ModerationVideoSerializer
 
     def get_permissions(self):
-        if self.action == 'partial_update' and self.request.user.is_user:
-            return [NotBannedAllowAny(), perm.IsAuthenticated(), IsOwner()]
-        return [NotBannedAllowAny(), perm.IsAuthenticatedOrReadOnly()]
+        user = self.request.user
+        if user.is_authenticated and not user.is_user:
+            if self.action == 'partial_update':
+                return [
+                    perm.IsAuthenticated(),
+                    IsModerOrStreamer(),
+                    NotBannedAllowAny(),
+                ]
+        return [
+            NotBannedAllowAny(), perm.IsAuthenticatedOrReadOnly(), IsOwner()
+        ]
 
     def get_queryset(self):
         user = self.request.user

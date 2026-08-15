@@ -17,9 +17,32 @@ def api_client():
 def users(db):
     return {
         role: User.objects.create(
+            twitch_id=role,
             username=role,
             role=role,
-            twitch_id=role,
+            twitch_avatar='test'
         )
         for role in UserRole
     }
+
+
+@pytest.fixture
+def auth(api_client, users):
+    api_client.force_authenticate(user=users[UserRole.USER])
+    return api_client
+
+
+@pytest.fixture
+def moder(api_client, users):
+    api_client.force_authenticate(user=users[UserRole.MODER])
+    return api_client
+
+
+@pytest.fixture
+def new_user(db):
+    return User.objects.create(
+        twitch_id='new_user',
+        username='new_user',
+        role=UserRole.USER,
+        twitch_avatar='new_user'
+    )

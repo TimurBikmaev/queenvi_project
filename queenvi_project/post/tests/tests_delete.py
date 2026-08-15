@@ -4,8 +4,8 @@ from django.contrib.auth import get_user_model
 from django.urls import reverse
 import pytest
 
+from core.constants import TestConstants
 from post.models import Post
-from post.tests.constants import TestPostConstants as TPC
 from user.constants import UserRole
 
 
@@ -14,7 +14,7 @@ User = get_user_model()
 
 @pytest.mark.parametrize(
     'role',
-    TPC.PARAMS_USER,
+    TestConstants.PARAMS_USERS,
 )
 def test_post_delete_correct(api_client, users, post_factory, role):
     if role is None:
@@ -41,7 +41,7 @@ def test_post_delete_correct(api_client, users, post_factory, role):
 
 @pytest.mark.parametrize(
     'role',
-    TPC.PARAMS_USER,
+    TestConstants.PARAMS_AUTH_USERS,
 )
 def test_post_delete_only_author(api_client, users, post_factory, role):
     new_user = User.objects.create(
@@ -51,8 +51,7 @@ def test_post_delete_only_author(api_client, users, post_factory, role):
     )
     post = post_factory(user=new_user)
 
-    if role is not None:
-        api_client.force_authenticate(user=users[role])
+    api_client.force_authenticate(user=users[role])
     response = api_client.delete(
         reverse('posts-detail', args=[post.public_id]),
     )
@@ -61,4 +60,24 @@ def test_post_delete_only_author(api_client, users, post_factory, role):
 
     assert Post.objects.filter(public_id=post.public_id).exists(), (
         'Только автор может удалить свой пост'
+    )
+
+
+@pytest.mark.parametrize(
+    'role',
+    TestConstants.PARAMS_BANNED_USERS,
+)
+def test_post_delete_by_banned(api_client, users, post_factory, role):
+    users[role].is_banned = True
+    users[role].save(update_fields=['is_banned'])
+
+    post = post_factory(user=users[role])
+
+    api_client.force_authenticate(user=users[role])
+    response = api_client.delete(
+        reverse('posts-detail', args=[post.public_id]),
+    )
+
+    assert response.status_code == HTTPStatus.FORBIDDEN, (
+        'Забаненный юзер не может удалить пост'
     )

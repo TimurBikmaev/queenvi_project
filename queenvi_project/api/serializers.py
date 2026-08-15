@@ -10,11 +10,11 @@ from post import constants as cs
 from post.errors import MediaFormatValidationError
 from post.models import Comment, Media, Post, Report
 from post.utils import MediaUtils
-from user.constants import UserConstants as UC
+from user.constants import UserConstants as UC, UserRole
 from user.errors import ChangeUserValidationError
 from user.validators import ChangeUserValidator as CUV
 from youtube_suggestion import errors as er
-from youtube_suggestion.constants import VideoConstants
+from youtube_suggestion.constants import Category, VideoConstants
 from youtube_suggestion.models import Video
 from youtube_suggestion.services import VideoSerivce
 
@@ -270,6 +270,13 @@ class ProfileSerializer(ShortProfileSerializer):
 
 class ModerationProfileSerializer(ProfileSerializer):
     """Профиль юзера для модерации и стримера."""
+    role = serializers.ChoiceField(
+        choices=UserRole.choices,
+        error_messages={
+            'invalid_choice': f'Допустимые роли: {UserRole.values}'
+        }
+    )
+
     class Meta(ProfileSerializer.Meta):
         fields = ProfileSerializer.Meta.fields + ['is_banned', 'role']
         read_only_fields = ['username', 'twitch_avatar', 'custom_avatar']
@@ -281,12 +288,12 @@ class ModerationProfileSerializer(ProfileSerializer):
         changes = {}
         try:
             CUV.user_cannot_change_himself(user, self.instance)
+            CUV.can_user_change_other_user(user, self.instance)
             if role is not None:
                 CUV.can_user_change_role(user, self.instance)
                 CUV.only_one_streamer(user, role, self.instance)
                 changes['role'] = (instance.role, role)
             if is_banned is not None:
-                CUV.can_user_change_is_banned(user, self.instance)
                 changes['is_banned'] = (instance.is_banned, is_banned)
         except ChangeUserValidationError as e:
             raise serializers.ValidationError(str(e))
@@ -335,10 +342,13 @@ class CreateReportSerializer(mx.BaseSerializerMixin):
             raise serializers.ValidationError(
                 cs.ReportConstants.MSG_CANNOT_REPORT_STAFF
             )
-        if other is not None and reason != cs.ReportReasonStatus.OTHER:
+        if (
+            other is not None and reason != cs.ReportReason.OTHER
+            or reason == cs.ReportReason.OTHER and other is None
+        ):
             logger.warning(
                 'Юзер %s (%s) попытался отправить текстовый репорт без '
-                'категории \'other\' на пост %s автора %s (%s)',
+                'причины \'other\' на пост %s автора %s (%s)',
                 user.username,
                 user.role,
                 post.public_id,
@@ -364,7 +374,7 @@ class CreateReportSerializer(mx.BaseSerializerMixin):
         """При создании жалобы юзера прост возвращается сообщение."""
         return {
             'message': cs.ReportConstants.MSG_CREATED.format(
-                public_id=obj.public_id
+                public_id=obj.post.public_id
             )
         }
 
@@ -374,6 +384,12 @@ class ModerationReportSerializer(mx.BaseSerializerMixin):
     user = serializers.SerializerMethodField(read_only=True)
     post = serializers.SerializerMethodField(read_only=True)
     moder = serializers.SerializerMethodField(read_only=True)
+    status = serializers.ChoiceField(
+        choices=cs.ReportStatus.choices,
+        error_messages={
+            'invalid_choice': f'Допустимые статусы: {cs.ReportStatus.values}'
+        }
+    )
 
     class Meta(CreateReportSerializer.Meta):
         fields = CreateReportSerializer.Meta.fields + [
@@ -449,11 +465,19 @@ class VideoSerializer(mx.BaseSerializerMixin):
     """Сериализатор видео."""
     youtube_url = serializers.URLField(write_only=True)
     comment = serializers.CharField(
-        max_length=VideoConstants.COMMENT_MAX_LENGTH
+        max_length=VideoConstants.COMMENT_MAX_LENGTH,
+        required=False,
+        allow_blank=False,
     )
     user = ShortProfileSerializer(read_only=True)
     votings_count = serializers.ReadOnlyField()
     is_voted = serializers.ReadOnlyField()
+    category = serializers.ChoiceField(
+        choices=Category.choices,
+        error_messages={
+            'invalid_choice': f'Допустимые категории: {Category.values}'
+        }
+    )
 
     class Meta:
         model = Video
@@ -466,6 +490,7 @@ class VideoSerializer(mx.BaseSerializerMixin):
 
     def create(self, validated_data):
         user = self.context['request'].user
+
         try:
             video = VideoSerivce.video_uploading(
                 url=validated_data['youtube_url'],
@@ -479,6 +504,10 @@ class VideoSerializer(mx.BaseSerializerMixin):
             er.VideoRequestError
         ) as e:
             raise serializers.ValidationError(str(e))
+
+        video.votings_count = VideoConstants.NO_VOTINGS
+        video.is_voted = False
+
         return video
 
     def update(self, instance, validated_data):

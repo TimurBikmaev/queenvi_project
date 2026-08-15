@@ -12,11 +12,7 @@ class User(CreatedAtMixin, UpdatedMixin, AbstractUser):
         max_length=UserConstants.TWITCH_ID_MAX_LENGTH,
         unique=True,
     )
-    twitch_avatar = models.URLField(
-        'Твич аватарка',
-        null=True,
-        blank=True
-    )
+    twitch_avatar = models.URLField('Твич аватарка', blank=True)
     custom_avatar = models.ImageField(
         'Кастомная аватарка',
         upload_to=avatar_upload_to,

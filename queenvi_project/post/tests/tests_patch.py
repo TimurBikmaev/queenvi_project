@@ -4,11 +4,10 @@ from django.contrib.auth import get_user_model
 from django.urls import reverse
 import pytest
 
+from core.constants import TestConstants
 from post.constants import MediaConstants as MC, MediaType, PostConstants
-from post.models import Post
-from post.tests.constants import (
-    TestMediaConstants as TMC, TestPostConstants as TPC,
-)
+from post.models import Media, Post
+from post.tests.constants import TestMediaConstants as TMC
 from user.constants import UserRole
 
 
@@ -26,7 +25,7 @@ User = get_user_model()
 )
 @pytest.mark.parametrize(
     'role',
-    TPC.PARAMS_AUTH_USER,
+    TestConstants.PARAMS_AUTH_USERS,
 )
 def test_post_patch_correct(
     api_client, users, post_factory, file_factory, role, field, value
@@ -73,30 +72,53 @@ def test_post_patch_correct(
     assert getattr(post, field) == value, f'Поле {field} не обновилось'
 
 
-def test_post_patch_anon_cannot(api_client, post_factory):
-    post = post_factory()
+@pytest.mark.parametrize(
+    'name, content_type',
+    [
+        ('test.mp4', 'video/mp4'),
+        ('test.mp3', 'audio/mpeg'),
+    ],
+)
+def test_post_patch_video_audio(
+    auth, post_factory, file_factory, name, content_type
+):
+    old_post = post_factory()
 
-    response = api_client.patch(
-        reverse('posts-detail', args=[post.public_id]),
-        {'name': 'test_2'},
+    response = auth.patch(
+        reverse('posts-detail', args=[old_post.public_id]),
+        {'create_media': [file_factory(name=name, content_type=content_type)]},
         format='multipart',
     )
 
-    assert response.status_code == HTTPStatus.FORBIDDEN, (
-        'Аноним не может изменять пост'
+    assert response.status_code == HTTPStatus.OK, (
+        'При обновлении поста должна быть возможность загружать: '
+        f'{MC.FORMAT_AUDIO} + {MC.FORMAT_PHOTO} + {MC.FORMAT_VIDEO}'
+    )
+
+    media = Media.objects.get(post=old_post)
+    extension = f'.{name.split(".")[TMC.EXTENSION_IDX]}'
+    assert media.file.name.endswith(extension), (
+        'При обновлении был отправлен один файл, а посту присвоился другой'
     )
 
 
-def test_post_patch_only_author(api_client, post_factory):
-    post = post_factory()
-
+@pytest.mark.parametrize(
+    'role',
+    TestConstants.PARAMS_NOT_STAFF,
+)
+def test_post_patch_cannot_anon_user_other_post(
+    api_client, users, post_factory, role
+):
     new_user = User.objects.create(
         username='new_user',
         role=UserRole.USER,
         twitch_id='new_user',
     )
 
-    api_client.force_authenticate(user=new_user)
+    post = post_factory(new_user)
+
+    if role is not None:
+        api_client.force_authenticate(user=users[role])
     response = api_client.patch(
         reverse('posts-detail', args=[post.public_id]),
         {'name': 'test_2'},
@@ -104,7 +126,7 @@ def test_post_patch_only_author(api_client, post_factory):
     )
 
     assert response.status_code == HTTPStatus.FORBIDDEN, (
-        'За исключением модера и стримера только автор может изменять пост'
+        'Аноним и обычный зареганный юзер не могут менять чужой пост'
     )
 
 
@@ -119,7 +141,7 @@ def test_post_patch_only_author(api_client, post_factory):
 )
 @pytest.mark.parametrize(
     'role',
-    TPC.PARAMS_STAFF,
+    TestConstants.PARAMS_STAFF,
 )
 def test_post_patch_ignore_fields_for_moder_streamer(
     api_client, users, post_factory, file_factory, role, field, value
@@ -163,15 +185,16 @@ def test_post_patch_ignore_fields_for_moder_streamer(
 
 
 @pytest.mark.parametrize(
-    'field, value',
-    [
-        ('is_banned', True),
-        ('is_banned', False),
-    ],
+    'field',
+    ['is_banned'],
+)
+@pytest.mark.parametrize(
+    'value',
+    [True, False],
 )
 @pytest.mark.parametrize(
     'role',
-    TPC.PARAMS_STAFF,
+    TestConstants.PARAMS_STAFF,
 )
 def test_post_patch_moder_and_streamer_can_change_ban_status(
     api_client, users, post_factory, role, field, value
@@ -198,17 +221,18 @@ def test_post_patch_moder_and_streamer_can_change_ban_status(
 
     post = Post.objects.get(public_id=response.data['public_id'])
 
-    assert old_post.is_banned != post.is_banned, (
+    assert post.is_banned == value, (
         'Модер и стример могут менять статус бана чужих постов'
     )
 
 
 @pytest.mark.parametrize(
-    'field, value',
-    [
-        ('is_banned', True),
-        ('is_banned', False),
-    ],
+    'value',
+    [True, False],
+)
+@pytest.mark.parametrize(
+    'field',
+    ['is_banned'],
 )
 def test_post_patch_moder_cannot_сhange_ban_status_of_streamer(
     api_client, users, post_factory, field, value
@@ -229,7 +253,7 @@ def test_post_patch_moder_cannot_сhange_ban_status_of_streamer(
 
 @pytest.mark.parametrize(
     'role',
-    TPC.PARAMS_STAFF,
+    TestConstants.PARAMS_STAFF,
 )
 def test_post_patch_staff_cannot_unban_post_of_banned_user(
     api_client, users, post_factory, role
@@ -240,9 +264,6 @@ def test_post_patch_staff_cannot_unban_post_of_banned_user(
 
     users[UserRole.USER].is_banned = True
     users[UserRole.USER].save(update_fields=['is_banned'])
-
-    assert old_post.is_banned is True
-    assert users[UserRole.USER].is_banned is True
 
     api_client.force_authenticate(user=users[role])
     response = api_client.patch(
@@ -258,9 +279,9 @@ def test_post_patch_staff_cannot_unban_post_of_banned_user(
 
 @pytest.mark.parametrize(
     'role',
-    TPC.PARAMS_AUTH_USER,
+    TestConstants.PARAMS_AUTH_USERS,
 )
-def test_post_patch_author_cannot_ban_his_post(
+def test_post_patch_author_cannot_change_public_id_is_banned_of_his_post(
     api_client, users, post_factory, role
 ):
     old_post = post_factory(user=users[role])
@@ -268,20 +289,23 @@ def test_post_patch_author_cannot_ban_his_post(
     api_client.force_authenticate(user=users[role])
     response = api_client.patch(
         reverse('posts-detail', args=[old_post.public_id]),
-        {'is_banned': True},
-        format='multipart',
+        {
+            'public_id': 'test',
+            'is_banned': True
+        },
+        format='json',
     )
 
-    assert 'is_banned' not in response.data, ('Нельзя забанить свой пост')
+    assert response.data['public_id'] != 'test', 'Нельзя изменить "public_id"'
+    assert 'is_banned' not in response.data, 'Нельзя забанить свой пост'
 
 
-def test_post_update_incorrect_name(api_client, post_factory, users):
+def test_post_patch_incorrect_name(auth, post_factory):
     old_post = post_factory()
 
     invalid_post_data = {'name': 't' * PostConstants.NAME_MAX_LENGTH + 't'}
 
-    api_client.force_authenticate(user=users[UserRole.USER])
-    response = api_client.patch(
+    response = auth.patch(
         reverse('posts-detail', args=[old_post.public_id]),
         invalid_post_data,
         format='multipart',
@@ -292,15 +316,14 @@ def test_post_update_incorrect_name(api_client, post_factory, users):
     )
 
 
-def test_post_update_incorrect_description(api_client, users, post_factory):
+def test_post_patch_incorrect_description(auth, post_factory):
     old_post = post_factory()
 
     invalid_post_data = {
         'description': 't' * PostConstants.DESCRIPTION_MAX_LENGTH + 't',
     }
 
-    api_client.force_authenticate(user=users[UserRole.USER])
-    response = api_client.patch(
+    response = auth.patch(
         reverse('posts-detail', args=[old_post.public_id]),
         invalid_post_data,
         format='multipart',
@@ -312,13 +335,10 @@ def test_post_update_incorrect_description(api_client, users, post_factory):
     )
 
 
-def test_post_update_incorrect_files_min_count(
-        api_client, users, post_factory
-):
+def test_post_patch_incorrect_files_min_count(auth, post_factory):
     old_post = post_factory()
 
-    api_client.force_authenticate(user=users[UserRole.USER])
-    response = api_client.patch(
+    response = auth.patch(
         reverse('posts-detail', args=[old_post.public_id]),
         {'create_media': []},
         format='json',
@@ -330,12 +350,11 @@ def test_post_update_incorrect_files_min_count(
 
 
 def test_post_patch_incorrect_files_max_count(
-    api_client, users, post_factory, file_factory
+        auth, post_factory, file_factory
 ):
     old_post = post_factory()
 
-    api_client.force_authenticate(user=users[UserRole.USER])
-    response = api_client.patch(
+    response = auth.patch(
         reverse('posts-detail', args=[old_post.public_id]),
         {
             'create_media': [
@@ -351,13 +370,10 @@ def test_post_patch_incorrect_files_max_count(
     )
 
 
-def test_patch_create_incorrect_file_format(
-        api_client, users, post_factory, file_factory
-):
+def test_patch_patch_incorrect_file_format(auth, post_factory, file_factory):
     old_post = post_factory()
 
-    api_client.force_authenticate(user=users[UserRole.USER])
-    response = api_client.patch(
+    response = auth.patch(
         reverse('posts-detail', args=[old_post.public_id]),
         {
             'create_media': [file_factory(name='test.txt')],
@@ -368,4 +384,24 @@ def test_patch_create_incorrect_file_format(
     assert response.status_code == HTTPStatus.BAD_REQUEST, (
         'В пост можно загружать файлы только таких форматов: '
         f'{MC.FORMAT_AUDIO + MC.FORMAT_PHOTO + MC.FORMAT_VIDEO}'
+    )
+
+
+@pytest.mark.parametrize(
+    'role',
+    TestConstants.PARAMS_BANNED_USERS,
+)
+def test_post_patch_by_banned(api_client, users, post_factory, role):
+    users[role].is_banned = True
+    users[role].save(update_fields=['is_banned'])
+
+    post = post_factory(user=users[role])
+
+    api_client.force_authenticate(user=users[role])
+    response = api_client.patch(
+        reverse('posts-detail', args=[post.public_id])
+    )
+
+    assert response.status_code == HTTPStatus.FORBIDDEN, (
+        'Забаненный юзер не может изменять пост'
     )

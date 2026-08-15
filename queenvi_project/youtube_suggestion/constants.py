@@ -6,6 +6,7 @@ class VideoConstants:
     COMMENT_MAX_LENGTH = 50
     MSG_CANNOT_CHANGE_BANNED = 'Нельзя изменить забаненное видео :('
     NAME_MAX_LENGTH = 100
+    NO_VOTINGS = 0
     VIDEO_ID_MAX_LENGTH = 11
 
 
