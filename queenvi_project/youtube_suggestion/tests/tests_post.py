@@ -15,7 +15,7 @@ from youtube_suggestion.models import Video
     'role',
     TestConstants.PARAMS_USERS,
 )
-def test_video_create_correct(api_client, users, role,):
+def test_video_create_correct(api_client, users, role, mock_youtube_service):
     valid_video_data = {
         'youtube_url': 'https://youtu.be/-_tvzxLM_kM',
         'category': Category.HUMUROUS,
@@ -67,7 +67,7 @@ def test_video_create_correct(api_client, users, role,):
     )
 
 
-def test_video_create_default_value(auth, users):
+def test_video_create_default_value(auth, mock_youtube_service):
     valid_video_data = {
         'youtube_url': 'https://youtu.be/-_tvzxLM_kM',
         'category': Category.HUMUROUS,
@@ -220,7 +220,9 @@ def test_video_create_existed(auth, video_factory):
     'role',
     TestConstants.PARAMS_AUTH_USERS,
 )
-def test_video_create_public_id_and_is_banned_change(api_client, users, role):
+def test_video_create_public_id_and_is_banned_change(
+    api_client, users, role, mock_youtube_service
+):
     request_public_id = 'тест'
     valid_video_data = {
         'public_id': request_public_id,

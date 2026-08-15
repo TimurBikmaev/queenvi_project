@@ -306,7 +306,7 @@ class CommentViewSet(
             'Юзер %s (%s) создал коммент %s на пост %s',
             user.username,
             user.role,
-            comment.public_id,
+            comment.data['public_id'],
             post.public_id,
         )
         return comment
@@ -385,8 +385,13 @@ class VideoViewSet(
                     IsModerOrStreamer(),
                     NotBannedAllowAny(),
                 ]
+        if self.action == 'voting':
+            return [perm.IsAuthenticated(), NotBannedAllowAny()]
+
         return [
-            NotBannedAllowAny(), perm.IsAuthenticatedOrReadOnly(), IsOwner()
+            NotBannedAllowAny(),
+            perm.IsAuthenticatedOrReadOnly(),
+            IsOwner()
         ]
 
     def get_queryset(self):

@@ -1,4 +1,8 @@
-from user.constants import UserRole
+
+
+class TestLikeConstants:
+    NO_LIKES = 0
+    ONE_LIKE = 1
 
 
 class TestPostConstants:
@@ -40,3 +44,11 @@ class TestReportConstants:
     ONE_REPORT = 1
     SECOND_REPORT_IDX = 1
     TWO_REPORTS = 2
+
+
+class TestCommentConstants:
+    DELTA_TWO_DAYS = 2
+    FIRST_COMMENT_IDX = 0
+    ONE_COMMENT = 1
+    SECOND_COMMENT_IDX = 1
+    TWO_COMMENTS = 2
