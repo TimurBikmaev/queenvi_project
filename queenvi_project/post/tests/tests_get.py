@@ -58,7 +58,7 @@ def test_post_list_correct(
             f'В посте отсутствуют поля {set(post_fields) - post.keys()}'
         )
 
-        assert len(post['name']) <= PostConstants.NAME_PROFILEMAX_LENGTH, (
+        assert len(post['name']) <= PostConstants.NAME_PROFILE_MAX_LENGTH, (
             'Длина "name" у постов в профиле превышает допустимую'
         )
         assert (
