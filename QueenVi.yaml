@@ -1,0 +1,1567 @@
+openapi: 3.0.3
+info:
+  title: QueenVi
+  version: 1.0.0
+  description: Площадка для обмена контентом внутри фан-сообщества стримерши QueenVi.
+paths:
+  /api/v1/posts/:
+    get:
+      operationId: posts_list
+      description: Возвращает список пользовательских публикаций. По умолчанию возвращаются
+        незабаненные публикации, отфильтрованные для просмотра на стриме и отсортированные
+        от новых к старым. Доступна фильтрация по типу медиафайлов, флагу "для стрима",
+        периоду создания и сортировка по количеству лайков и комментариев. Модератору
+        и стримеру отображается статус бана, а также доступна фильтрация по статусу
+        бана.
+      summary: Получить список публикаций
+      parameters:
+      - in: query
+        name: created
+        schema:
+          type: string
+          enum:
+          - month
+          - today
+          - week
+          - year
+        description: Фильтрация по периоду создания публикаций
+      - in: query
+        name: is_banned
+        schema:
+          type: string
+          enum:
+          - all
+          - 'false'
+          - 'true'
+        description: Фильтрация по статусу бана. По умолчанию false. Для отображения
+          забаненных постов установите true.Доступна только модератору и стримеру.
+      - in: query
+        name: is_for_stream
+        schema:
+          type: boolean
+        description: Фильтрация "для стрима". По умолчанию true. Для отображения постов,
+          не предназначенных для стрима, передайте false.
+      - in: query
+        name: media
+        schema:
+          type: string
+          enum:
+          - audio
+          - photo
+          - video
+        description: Фильтрация по типу медиа у публикаций
+      - in: query
+        name: ordering
+        schema:
+          type: string
+          enum:
+          - comments_count
+          - likes_count
+        description: Сортировка публикаций
+      tags:
+      - Посты
+      security:
+      - cookieAuth: []
+      - basicAuth: []
+      - {}
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/ShortPost'
+          description: ''
+        '403':
+          description: Забаненным пользователям доступ запрещен.
+    post:
+      operationId: posts_create
+      description: Для создания публикации необходимо написать заголовок и загрузить
+        медиа.
+      summary: Создать публикацию
+      tags:
+      - Посты
+      requestBody:
+        content:
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/PostRequest'
+          application/json:
+            schema:
+              $ref: '#/components/schemas/PostRequest'
+        required: true
+      security:
+      - cookieAuth: []
+      - basicAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Post'
+          description: ''
+        '400':
+          description: 'Формат ''{ext}'' файла ''{filename}'' запрещен для загрузки:(
+            Допустимые форматы фото: [''.jpg'', ''.jpeg'', ''.jfif'', ''.png'']; видео:
+            [''.mp4'']; аудио: [''.mp3'']'
+        '403':
+          description: Анонимам доступ запрещен. | Забаненным пользователям доступ
+            запрещен.
+  /api/v1/posts/{post_id}/comments/:
+    get:
+      operationId: posts_comments_list
+      description: Возвращает список комментариев незабаненных пользователей, отсортированнных
+        от новых к старым, к публикации. Модератор и стример может фильтровать комментарии
+        по статусу бана пользователя.
+      summary: Получить список комментариев
+      parameters:
+      - in: query
+        name: is_banned
+        schema:
+          type: string
+          enum:
+          - all
+          - 'false'
+          - 'true'
+        description: Фильтрация по статусу бана пользователя. По умолчанию false.
+          Для отображения комментариев забаненных пользователей установите true. Доступна
+          только модератору и стримеру.
+      - in: path
+        name: post_id
+        schema:
+          type: string
+          pattern: ^[a-zA-Z0-9]{8}$
+        required: true
+      tags:
+      - Комментарии
+      security:
+      - cookieAuth: []
+      - basicAuth: []
+      - {}
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/Comment'
+          description: ''
+        '403':
+          description: Забаненным пользователям доступ запрещен.
+        '404':
+          description: Обычные пользователи не могут смотреть забаненные объекты.
+            | Объект не найден.
+    post:
+      operationId: posts_comments_create
+      description: Создать комментарий для публикации.
+      summary: Создать комментарий
+      parameters:
+      - in: path
+        name: post_id
+        schema:
+          type: string
+          pattern: ^[a-zA-Z0-9]{8}$
+        required: true
+      tags:
+      - Комментарии
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CommentRequest'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/CommentRequest'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/CommentRequest'
+        required: true
+      security:
+      - cookieAuth: []
+      - basicAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Comment'
+          description: ''
+        '400':
+          description: Длина комментария > 700
+        '403':
+          description: Анонимам доступ запрещен. | Забаненным пользователям доступ
+            запрещен.
+        '404':
+          description: Обычные пользователи не могут смотреть забаненные объекты.
+            | Объект не найден.
+  /api/v1/posts/{post_id}/comments/{public_id}/:
+    patch:
+      operationId: posts_comments_partial_update
+      description: Обновление комментария доступно только автору.
+      summary: Обновить комментарий
+      parameters:
+      - in: path
+        name: post_id
+        schema:
+          type: string
+          pattern: ^[a-zA-Z0-9]{8}$
+        required: true
+      - in: path
+        name: public_id
+        schema:
+          type: string
+          pattern: ^[a-zA-Z0-9]{8}$
+        required: true
+      tags:
+      - Комментарии
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/PatchedCommentRequest'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/PatchedCommentRequest'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/PatchedCommentRequest'
+      security:
+      - cookieAuth: []
+      - basicAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Comment'
+          description: ''
+        '400':
+          description: Длина комментария > 700
+        '403':
+          description: Анонимам доступ запрещен. | Забаненным пользователям доступ
+            запрещен.
+        '404':
+          description: Обычные пользователи не могут смотреть забаненные объекты.
+            | Объект не найден.
+    delete:
+      operationId: posts_comments_destroy
+      description: Удаление комментария доступно автору, модератору и стримеру.
+      summary: Удалить комментарий
+      parameters:
+      - in: path
+        name: post_id
+        schema:
+          type: string
+          pattern: ^[a-zA-Z0-9]{8}$
+        required: true
+      - in: path
+        name: public_id
+        schema:
+          type: string
+          pattern: ^[a-zA-Z0-9]{8}$
+        required: true
+      tags:
+      - Комментарии
+      security:
+      - cookieAuth: []
+      - basicAuth: []
+      responses:
+        '204':
+          description: No response body
+        '403':
+          description: Анонимам доступ запрещен. | Забаненным пользователям доступ
+            запрещен. | Только автор может изменять объект. | Обычным юзерам доступ
+            запрещен.
+        '404':
+          description: Обычные пользователи не могут смотреть забаненные объекты.
+            | Объект не найден.
+  /api/v1/posts/{public_id}/:
+    get:
+      operationId: posts_retrieve
+      description: Подробное отображение поста с полным списком медиа. Для модератора
+        и стримера доступно изменение статуса бана.
+      summary: Получить публикацию
+      parameters:
+      - in: path
+        name: public_id
+        schema:
+          type: string
+        required: true
+      tags:
+      - Посты
+      security:
+      - cookieAuth: []
+      - basicAuth: []
+      - {}
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Post'
+          description: ''
+        '404':
+          description: Обычные пользователи не могут смотреть забаненные объекты.
+            | Объект не найден.
+        '403':
+          description: Забаненным пользователям доступ запрещен.
+    patch:
+      operationId: posts_partial_update
+      description: Обновить публикацию. Для модератора и стримера доступно изменение
+        статуса бана.
+      summary: Обновить публикацию
+      parameters:
+      - in: path
+        name: public_id
+        schema:
+          type: string
+        required: true
+      tags:
+      - Посты
+      requestBody:
+        content:
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/PatchedPostRequest'
+          application/json:
+            schema:
+              $ref: '#/components/schemas/PatchedPostRequest'
+      security:
+      - cookieAuth: []
+      - basicAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Post'
+          description: ''
+        '400':
+          description: 'Формат ''{ext}'' файла ''{filename}'' запрещен для загрузки:(
+            Допустимые форматы фото: [''.jpg'', ''.jpeg'', ''.jfif'', ''.png'']; видео:
+            [''.mp4'']; аудио: [''.mp3'']'
+        '403':
+          description: Анонимам доступ запрещен. | Забаненным пользователям доступ
+            запрещен. | Только автор может изменять объект.
+        '404':
+          description: Обычные пользователи не могут смотреть забаненные объекты.
+            | Объект не найден.
+    delete:
+      operationId: posts_destroy
+      description: Удаление публикации доступно только автору.
+      summary: Удалить публикацию
+      parameters:
+      - in: path
+        name: public_id
+        schema:
+          type: string
+        required: true
+      tags:
+      - Посты
+      security:
+      - cookieAuth: []
+      - basicAuth: []
+      responses:
+        '204':
+          description: No response body
+        '403':
+          description: Анонимам доступ запрещен. | Забаненным пользователям доступ
+            запрещен. | Только автор может изменять объект.
+  /api/v1/posts/{public_id}/like/:
+    post:
+      operationId: posts_like_create
+      description: Лайки повышают популярность публикации.
+      summary: Поставить лайк на публикацию
+      parameters:
+      - in: path
+        name: public_id
+        schema:
+          type: string
+        required: true
+      tags:
+      - Лайки
+      security:
+      - cookieAuth: []
+      - basicAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Post'
+          description: ''
+        '403':
+          description: Анонимам доступ запрещен. | Забаненным пользователям доступ
+            запрещен.
+        '404':
+          description: Обычные пользователи не могут смотреть забаненные объекты.
+            | Объект не найден.
+    delete:
+      operationId: posts_like_destroy
+      description: Удаления лайков снижает популярность публикации.
+      summary: Убрать лайк с публикации
+      parameters:
+      - in: path
+        name: public_id
+        schema:
+          type: string
+        required: true
+      tags:
+      - Лайки
+      security:
+      - cookieAuth: []
+      - basicAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Post'
+          description: ''
+        '403':
+          description: Анонимам доступ запрещен. | Забаненным пользователям доступ
+            запрещен.
+        '404':
+          description: Обычные пользователи не могут смотреть забаненные объекты.
+            | Объект не найден.
+  /api/v1/posts/{public_id}/report/:
+    post:
+      operationId: posts_report_create
+      description: Жалоба пользователя позволяет эффективнее модерировать контент.
+      summary: Пожаловаться на публикацию
+      parameters:
+      - in: path
+        name: public_id
+        schema:
+          type: string
+        required: true
+      tags:
+      - Жалобы
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CreateReportRequest'
+        required: true
+      security:
+      - cookieAuth: []
+      - basicAuth: []
+      responses:
+        '200':
+          description: Жалоба на пост {public_id} отправлена! Модерация ее проверит
+            и при обнаружении нарушения примет меры. Спасибо, что делаешь сообщество
+            дружелюбнее :)
+        '400':
+          description: Нельзя пожаловаться на пост модера или стримера -_- | Чтобы
+            отправить текстовую жалобу нужно выбрать причину 'другое' и отправить
+            текст жалобы в поле 'other' :)
+        '403':
+          description: Анонимам доступ запрещен. | Забаненным пользователям доступ
+            запрещен.
+        '404':
+          description: Обычные пользователи не могут смотреть забаненные объекты.
+            | Объект не найден.
+  /api/v1/profile/{username}/:
+    get:
+      operationId: profile_retrieve
+      description: Возвращает подробную информацию о профиле. У модератора и стримера
+        отображается статус бана.
+      summary: Получить профиль
+      parameters:
+      - in: path
+        name: username
+        schema:
+          type: string
+          title: Имя пользователя
+          description: Обязательное поле. Не более 150 символов. Только буквы, цифры
+            и символы @/./+/-/_.
+        required: true
+      tags:
+      - Профиль
+      security:
+      - cookieAuth: []
+      - basicAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Profile'
+          description: ''
+        '404':
+          description: Обычные пользователи не могут смотреть забаненные объекты.
+            | Объект не найден.
+        '403':
+          description: Забаненным пользователям доступ запрещен.
+    patch:
+      operationId: profile_partial_update
+      description: Изменение статуса бана и роли юзера (изменить роль может только
+        стример). Доступно только для модератора и стримера.
+      summary: Модерация профиля
+      parameters:
+      - in: path
+        name: username
+        schema:
+          type: string
+          title: Имя пользователя
+          description: Обязательное поле. Не более 150 символов. Только буквы, цифры
+            и символы @/./+/-/_.
+        required: true
+      tags:
+      - Профиль
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/PatchedModerationProfileRequest'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/PatchedModerationProfileRequest'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/PatchedModerationProfileRequest'
+      security:
+      - cookieAuth: []
+      - basicAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Profile'
+          description: ''
+        '403':
+          description: Анонимам доступ запрещен. | Забаненным пользователям доступ
+            запрещен. | Обычным юзерам доступ запрещен.
+        '400':
+          description: Нельзя изменить свою роль или статус бана :/ | Нельзя назначить
+            второго стримера :) | Только стример может менять роли юзера! | Модератор
+            может менять статус бана только у обычных юзеров!
+        '404':
+          description: Объект не найден.
+  /api/v1/profile/avatar/:
+    patch:
+      operationId: profile_avatar_partial_update
+      description: Загружает новую аватарку профиля. Можно загрузить изображение с
+        разрешением 4000x4000 и размером до 1 МБ. После установки используется кастомная
+        аватарка.
+      summary: Изменить аватарку профиля
+      tags:
+      - Профиль
+      requestBody:
+        content:
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/PatchedAvatarProfileRequest'
+      security:
+      - cookieAuth: []
+      - basicAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Profile'
+          description: ''
+        '403':
+          description: Анонимам доступ запрещен. | Забаненным пользователям доступ
+            запрещен.
+        '400':
+          description: 'Максимально допустимое разрешение: 4000x4000. | Максимально
+            допустимый размер файла 1 МБ.'
+    delete:
+      operationId: profile_avatar_destroy
+      description: Удаляет кастомную аватарку профиля. После удаления снова используется
+        аватарка Twitch.
+      summary: Удалить аватарку профиля
+      tags:
+      - Профиль
+      security:
+      - cookieAuth: []
+      - basicAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Profile'
+          description: ''
+        '403':
+          description: Анонимам доступ запрещен. | Забаненным пользователям доступ
+            запрещен.
+        '400':
+          description: Кастомная аватарка не установлена.
+  /api/v1/profile/logout/:
+    post:
+      operationId: profile_logout_create
+      description: Удаляет сессию пользователя
+      summary: Разлогин пользователя
+      tags:
+      - Аутентификация
+      security:
+      - cookieAuth: []
+      - basicAuth: []
+      responses:
+        '200':
+          description: No response body
+        '403':
+          description: Анонимам доступ запрещен. | Забаненным пользователям доступ
+            запрещен.
+  /api/v1/profile/twitch_login/:
+    get:
+      operationId: profile_twitch_login_retrieve
+      description: 'Необходимо открыть URL в адресной строке браузера. Эндпоинт перенаправит
+        пользователя на страницу авторизации Twitch. После успешной авторизации будет
+        создана пользовательская сессия. Для выполнения авторизованных запросов через
+        Postman необходимо получить значения cookies "sessionid" и "csrftoken" в DevTools
+        и передавать их в заголовках запросов: "Cookie: sessionid=<...>; csrftoken=<...>"
+        и для запросов, изменяющих данные: "X-CSRFToken: <...>".'
+      summary: Аутентификация через Twitch OAuth
+      tags:
+      - Аутентификация
+      security:
+      - cookieAuth: []
+      - basicAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Profile'
+          description: ''
+        '400':
+          description: Не удалось выполнить вход через твич:(
+  /api/v1/reports/:
+    get:
+      operationId: reports_list
+      description: Возвращает список нерассмотренных жалоб, отсортированных от новых
+        к старым. Фильтрация по статусу репорта. Доступно только для модератора и
+        стримера.
+      summary: Получить список жалоб
+      parameters:
+      - in: query
+        name: status
+        schema:
+          type: string
+          default: not_viewed
+          title: Статус
+          enum:
+          - approved
+          - not_viewed
+          - rejected
+        description: |-
+          * `not_viewed` - Не рассмотрена
+          * `approved` - Одобрена
+          * `rejected` - Отменена
+      tags:
+      - Жалобы
+      security:
+      - cookieAuth: []
+      - basicAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/ModerationReport'
+          description: ''
+        '403':
+          description: Анонимам доступ запрещен. | Забаненным пользователям доступ
+            запрещен. | Обычным юзерам доступ запрещен.
+  /api/v1/reports/{public_id}/:
+    patch:
+      operationId: reports_partial_update
+      description: Изменение статуса жалобы напрямую меняет статус бана публикации.
+      summary: Изменить статус жалобы
+      parameters:
+      - in: path
+        name: public_id
+        schema:
+          type: string
+        required: true
+      tags:
+      - Жалобы
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/PatchedModerationReportRequest'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/PatchedModerationReportRequest'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/PatchedModerationReportRequest'
+      security:
+      - cookieAuth: []
+      - basicAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Comment'
+          description: ''
+        '400':
+          description: Если репорт рассмотрен, то его нельзя снова сделать нерассмотренным!
+        '403':
+          description: Анонимам доступ запрещен. | Забаненным пользователям доступ
+            запрещен. | Обычным юзерам доступ запрещен.
+        '404':
+          description: Объект не найден.
+  /api/v1/search/:
+    get:
+      operationId: search_retrieve
+      description: Поиск осуществляется по "username" пользователя и "name" поста.
+      summary: Найти пользователя или пост
+      tags:
+      - Поиск
+      security:
+      - cookieAuth: []
+      - basicAuth: []
+      - {}
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Search'
+          description: ''
+        '403':
+          description: Забаненным пользователям доступ запрещен.
+  /api/v1/videos/:
+    get:
+      operationId: videos_list
+      description: Возвращает список рекомендованных для просмотра на стриме видео
+        из YouTube. По умолчанию возвращаются незабаненные видео, отсортированные
+        по убыванию количества голосов. Доступна фильтрация по категориям и сортировка
+        по дате создания. Модератору и стримеру отображается статус бана, а также
+        доступна фильтрация по статусу бана.
+      summary: Получить список рекомендованных видео
+      parameters:
+      - in: query
+        name: category
+        schema:
+          type: string
+          title: Категория
+          enum:
+          - cognitive
+          - different
+          - humurous
+          - trailers
+          - truecrime
+        description: |-
+          * `humurous` - Смешные
+          * `truecrime` - Трукрайм
+          * `cognitive` - Познавательные
+          * `trailers` - Трейлеры
+          * `different` - Разное
+      - in: query
+        name: is_banned
+        schema:
+          type: string
+          enum:
+          - all
+          - 'false'
+          - 'true'
+        description: Фильтрация по статусу бана. По умолчанию false. Для отображения
+          забаненных постов установите true.Доступна только модератору и стримеру.
+      - in: query
+        name: ordering
+        schema:
+          type: string
+          enum:
+          - -created_at
+          - created_at
+        description: Сортировка видео из предложки
+      tags:
+      - Предложка видео
+      security:
+      - cookieAuth: []
+      - basicAuth: []
+      - {}
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/Video'
+          description: ''
+        '403':
+          description: Забаненным пользователям доступ запрещен.
+    post:
+      operationId: videos_create
+      description: 'Предожить видео для просмотра на стриме. Необходимо вставить ссылку
+        из Youtube с доменами: "https://www.youtube.com/watch?v=" или "https://youtu.be/"
+        и выбрать категорию.'
+      summary: Предложить видео
+      tags:
+      - Предложка видео
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/VideoRequest'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/VideoRequest'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/VideoRequest'
+        required: true
+      security:
+      - cookieAuth: []
+      - basicAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Video'
+          description: ''
+        '400':
+          description: Это видео уже опубликовано в предложке:) | Это видео уже предлагали,
+            но его уже посмотрели на стриме или модерация отклонила его :( | В предложку
+            можно скинуть видео только из YouTube. Ссылка на видео должна начинаться
+            с 'https://www.youtube.com/watch?v=' или 'https://youtu.be/' и быть доступной
+            ^-^ | Не удалось получить данные видео :(.
+        '403':
+          description: Анонимам доступ запрещен. | Забаненным пользователям доступ
+            запрещен.
+  /api/v1/videos/{public_id}/:
+    patch:
+      operationId: videos_partial_update
+      description: Изменение категории или комментария к видео для обычного пользователя.
+        Изменение статуса бана для модератора или стримера.
+      summary: Обновить видео
+      parameters:
+      - in: path
+        name: public_id
+        schema:
+          type: string
+        required: true
+      tags:
+      - Предложка видео
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/PatchedVideoRequest'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/PatchedVideoRequest'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/PatchedVideoRequest'
+      security:
+      - cookieAuth: []
+      - basicAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Video'
+          description: ''
+        '400':
+          description: Нельзя изменить забаненное видео :( | Нельзя разбанить объект
+            забаненного пользователя :/ | Нельзя менять статус бана объекта стримера
+            :)
+        '403':
+          description: Анонимам доступ запрещен. | Забаненным пользователям доступ
+            запрещен. | Только автор может изменять объект.
+        '404':
+          description: Обычные пользователи не могут смотреть забаненные объекты.
+            | Объект не найден.
+  /api/v1/videos/{public_id}/voting/:
+    post:
+      operationId: videos_voting_create
+      description: Проголосовать за видео. Видео, набравшее наибольшее число голосов,
+        имеет самые высокие шансы быть просмотренным на стриме.
+      summary: Проголосовать за видео
+      parameters:
+      - in: path
+        name: public_id
+        schema:
+          type: string
+        required: true
+      tags:
+      - Голоса
+      security:
+      - cookieAuth: []
+      - basicAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Video'
+          description: ''
+        '403':
+          description: Анонимам доступ запрещен. | Забаненным пользователям доступ
+            запрещен.
+        '404':
+          description: Обычные пользователи не могут смотреть забаненные объекты.
+            | Объект не найден.
+    delete:
+      operationId: videos_voting_destroy
+      description: Убрать голос с видео и понизить шансы быть просмотренным на стриме.
+      summary: Убрать голос с видео
+      parameters:
+      - in: path
+        name: public_id
+        schema:
+          type: string
+        required: true
+      tags:
+      - Голоса
+      security:
+      - cookieAuth: []
+      - basicAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Video'
+          description: ''
+        '403':
+          description: Анонимам доступ запрещен. | Забаненным пользователям доступ
+            запрещен.
+        '404':
+          description: Обычные пользователи не могут смотреть забаненные объекты.
+            | Объект не найден.
+components:
+  schemas:
+    CategoryEnum:
+      enum:
+      - humurous
+      - truecrime
+      - cognitive
+      - trailers
+      - different
+      type: string
+      description: |-
+        * `humurous` - Смешные
+        * `truecrime` - Трукрайм
+        * `cognitive` - Познавательные
+        * `trailers` - Трейлеры
+        * `different` - Разное
+    Comment:
+      type: object
+      description: Сериализатор комментария.
+      properties:
+        public_id:
+          type: string
+          readOnly: true
+        user:
+          allOf:
+          - $ref: '#/components/schemas/ShortProfile'
+          readOnly: true
+        text:
+          type: string
+          maxLength: 700
+        created_at:
+          type: string
+          format: date-time
+          readOnly: true
+          title: Создан
+        updated_at:
+          type: string
+          format: date-time
+          readOnly: true
+          title: Обновлен
+      required:
+      - created_at
+      - public_id
+      - text
+      - updated_at
+      - user
+    CommentRequest:
+      type: object
+      description: Сериализатор комментария.
+      properties:
+        text:
+          type: string
+          minLength: 1
+          maxLength: 700
+      required:
+      - text
+    CreateReportRequest:
+      type: object
+      description: Сериализатор жалобы.
+      properties:
+        reason:
+          allOf:
+          - $ref: '#/components/schemas/ReasonEnum'
+          title: Причина
+        other:
+          type: string
+          maxLength: 700
+      required:
+      - reason
+    Media:
+      type: object
+      description: Серилизатор медиа.
+      properties:
+        file:
+          type: string
+          format: uri
+          title: Медиа
+        file_type:
+          type: string
+          readOnly: true
+        order:
+          type: integer
+          readOnly: true
+        created_at:
+          type: string
+          format: date-time
+          readOnly: true
+          title: Создан
+      required:
+      - created_at
+      - file
+      - file_type
+      - order
+    MediaRequest:
+      type: object
+      description: Серилизатор медиа.
+      properties:
+        file:
+          type: string
+          format: binary
+          title: Медиа
+      required:
+      - file
+    ModerationReport:
+      type: object
+      description: Сериализатор жалобы для модерации.
+      properties:
+        reason:
+          allOf:
+          - $ref: '#/components/schemas/ReasonEnum'
+          readOnly: true
+          title: Причина
+        other:
+          type: string
+          readOnly: true
+          title: Другое
+        user:
+          type: string
+          description: Возвращаем юзернейм того, кто кинул репорт.
+          readOnly: true
+        post:
+          type: string
+          description: Возвращаем public_id поста, который зарепортили.
+          readOnly: true
+        public_id:
+          type: string
+          readOnly: true
+        status:
+          $ref: '#/components/schemas/StatusEnum'
+        moder:
+          type: string
+          nullable: true
+          description: Возвращаем юзернейм модератора, который рассмотрел репорт.
+          readOnly: true
+        created_at:
+          type: string
+          format: date-time
+          readOnly: true
+          title: Создан
+        updated_at:
+          type: string
+          format: date-time
+          readOnly: true
+          title: Обновлен
+      required:
+      - created_at
+      - moder
+      - other
+      - post
+      - public_id
+      - reason
+      - status
+      - updated_at
+      - user
+    PatchedAvatarProfileRequest:
+      type: object
+      description: Изменение автарки.
+      properties:
+        custom_avatar:
+          type: string
+          format: binary
+          nullable: true
+          title: Кастомная аватарка
+    PatchedCommentRequest:
+      type: object
+      description: Сериализатор комментария.
+      properties:
+        text:
+          type: string
+          minLength: 1
+          maxLength: 700
+    PatchedModerationProfileRequest:
+      type: object
+      description: Профиль юзера для модерации и стримера.
+      properties:
+        is_banned:
+          type: boolean
+          default: false
+          title: Бан
+        role:
+          $ref: '#/components/schemas/RoleEnum'
+    PatchedModerationReportRequest:
+      type: object
+      description: Сериализатор жалобы для модерации.
+      properties:
+        status:
+          $ref: '#/components/schemas/StatusEnum'
+    PatchedPostRequest:
+      type: object
+      description: Подробная информация о посте.
+      properties:
+        name:
+          type: string
+          minLength: 1
+          maxLength: 100
+        description:
+          type: string
+          maxLength: 1000
+        is_for_stream:
+          type: boolean
+          default: true
+          title: Для стрима
+        create_media:
+          type: array
+          items:
+            type: string
+            format: binary
+          writeOnly: true
+          maxItems: 10
+          minItems: 1
+    PatchedVideoRequest:
+      type: object
+      description: Сериализатор видео.
+      properties:
+        category:
+          $ref: '#/components/schemas/CategoryEnum'
+        comment:
+          type: string
+          minLength: 1
+          maxLength: 50
+        youtube_url:
+          type: string
+          format: uri
+          writeOnly: true
+          minLength: 1
+    Post:
+      type: object
+      description: Подробная информация о посте.
+      properties:
+        public_id:
+          type: string
+          readOnly: true
+        user:
+          allOf:
+          - $ref: '#/components/schemas/ShortProfile'
+          readOnly: true
+        name:
+          type: string
+          maxLength: 100
+        description:
+          type: string
+          maxLength: 1000
+        is_for_stream:
+          type: boolean
+          default: true
+          title: Для стрима
+        likes_count:
+          type: integer
+          readOnly: true
+        comments_count:
+          type: integer
+          readOnly: true
+        is_liked:
+          type: boolean
+          example: false
+          readOnly: true
+        created_at:
+          type: string
+          format: date-time
+          readOnly: true
+          title: Создан
+        updated_at:
+          type: string
+          format: date-time
+          readOnly: true
+          title: Обновлен
+        media:
+          type: array
+          items:
+            $ref: '#/components/schemas/Media'
+          readOnly: true
+      required:
+      - comments_count
+      - created_at
+      - is_liked
+      - likes_count
+      - media
+      - name
+      - public_id
+      - updated_at
+      - user
+    PostRequest:
+      type: object
+      description: Подробная информация о посте.
+      properties:
+        name:
+          type: string
+          minLength: 1
+          maxLength: 100
+        description:
+          type: string
+          maxLength: 1000
+        is_for_stream:
+          type: boolean
+          default: true
+          title: Для стрима
+        create_media:
+          type: array
+          items:
+            type: string
+            format: binary
+          writeOnly: true
+          maxItems: 10
+          minItems: 1
+      required:
+      - create_media
+      - name
+    PreviewMedia:
+      type: object
+      description: Превью поста.
+      properties:
+        file:
+          type: string
+          format: uri
+          title: Медиа
+        file_type:
+          type: string
+          readOnly: true
+      required:
+      - file
+      - file_type
+    Profile:
+      type: object
+      description: Профиль для обычного юзера.
+      properties:
+        custom_avatar:
+          type: string
+          format: uri
+          nullable: true
+          title: Кастомная аватарка
+        username:
+          type: string
+          readOnly: true
+        posts_count:
+          type: integer
+          example: 1
+          readOnly: true
+        posts:
+          type: array
+          items:
+            $ref: '#/components/schemas/ShortPost'
+          readOnly: true
+        created_at:
+          type: string
+          format: date-time
+          readOnly: true
+          title: Создан
+        updated_at:
+          type: string
+          format: date-time
+          readOnly: true
+          title: Обновлен
+      required:
+      - created_at
+      - posts
+      - posts_count
+      - updated_at
+      - username
+    ReasonEnum:
+      enum:
+      - adult
+      - illegal
+      - advertising
+      - spam
+      - other
+      type: string
+      description: |-
+        * `adult` - Контент 18+
+        * `illegal` - Незаконный
+        * `advertising` - Реклама
+        * `spam` - Спам
+        * `other` - Другое
+    RoleEnum:
+      enum:
+      - user
+      - moder
+      - streamer
+      type: string
+      description: |-
+        * `user` - Юзер
+        * `moder` - Модер
+        * `streamer` - Стример
+    Search:
+      type: object
+      description: Краткая информация о посте в поиске.
+      properties:
+        users:
+          type: array
+          items:
+            $ref: '#/components/schemas/ShortProfile'
+        posts:
+          type: array
+          items:
+            $ref: '#/components/schemas/ShortPost'
+      required:
+      - posts
+      - users
+    ShortPost:
+      type: object
+      description: Краткая информация о посте.
+      properties:
+        public_id:
+          type: string
+          readOnly: true
+        user:
+          allOf:
+          - $ref: '#/components/schemas/ShortProfile'
+          readOnly: true
+        name:
+          type: string
+          description: Возвращает лишь первые несколько символов для название.
+          readOnly: true
+        description:
+          type: string
+          description: Возвращает лишь первые несколько символов для описания.
+          readOnly: true
+        is_for_stream:
+          type: boolean
+          default: true
+          title: Для стрима
+        likes_count:
+          type: integer
+          readOnly: true
+        comments_count:
+          type: integer
+          readOnly: true
+        is_liked:
+          type: boolean
+          example: false
+          readOnly: true
+        created_at:
+          type: string
+          format: date-time
+          readOnly: true
+          title: Создан
+        updated_at:
+          type: string
+          format: date-time
+          readOnly: true
+          title: Обновлен
+        preview:
+          allOf:
+          - $ref: '#/components/schemas/PreviewMedia'
+          readOnly: true
+      required:
+      - comments_count
+      - created_at
+      - description
+      - is_liked
+      - likes_count
+      - name
+      - preview
+      - public_id
+      - updated_at
+      - user
+    ShortPostRequest:
+      type: object
+      description: Краткая информация о посте.
+      properties:
+        is_for_stream:
+          type: boolean
+          default: true
+          title: Для стрима
+    ShortProfile:
+      type: object
+      description: Краткая информация профиля юзера.
+      properties:
+        custom_avatar:
+          type: string
+          format: uri
+          nullable: true
+          title: Кастомная аватарка
+        username:
+          type: string
+          readOnly: true
+      required:
+      - username
+    ShortProfileRequest:
+      type: object
+      description: Краткая информация профиля юзера.
+      properties:
+        custom_avatar:
+          type: string
+          format: binary
+          nullable: true
+          title: Кастомная аватарка
+    StatusEnum:
+      enum:
+      - not_viewed
+      - approved
+      - rejected
+      type: string
+      description: |-
+        * `not_viewed` - Не рассмотрена
+        * `approved` - Одобрена
+        * `rejected` - Отменена
+    Video:
+      type: object
+      description: Сериализатор видео.
+      properties:
+        public_id:
+          type: string
+          readOnly: true
+        youtube_id:
+          type: string
+          readOnly: true
+        user:
+          allOf:
+          - $ref: '#/components/schemas/ShortProfile'
+          readOnly: true
+        title:
+          type: string
+          readOnly: true
+          title: Название
+        preview_url:
+          type: string
+          format: uri
+          readOnly: true
+          title: Превью
+        channel_name:
+          type: string
+          readOnly: true
+          title: Канал
+        pub_date:
+          type: string
+          format: date-time
+          readOnly: true
+          title: Опубликовано на YouTube
+        duration:
+          type: integer
+          readOnly: true
+          title: Длительность в секундах
+        views_count:
+          type: integer
+          readOnly: true
+          title: Просмотры
+        likes_count:
+          type: integer
+          readOnly: true
+          title: Лайки
+        comments_count:
+          type: integer
+          readOnly: true
+          title: Коммы из Youtube
+        category:
+          $ref: '#/components/schemas/CategoryEnum'
+        comment:
+          type: string
+          maxLength: 50
+        is_voted:
+          type: boolean
+          example: false
+          readOnly: true
+        votings_count:
+          type: integer
+          readOnly: true
+        created_at:
+          type: string
+          format: date-time
+          readOnly: true
+          title: Создан
+        updated_at:
+          type: string
+          format: date-time
+          readOnly: true
+          title: Обновлен
+      required:
+      - category
+      - channel_name
+      - comments_count
+      - created_at
+      - duration
+      - is_voted
+      - likes_count
+      - preview_url
+      - pub_date
+      - public_id
+      - title
+      - updated_at
+      - user
+      - views_count
+      - votings_count
+      - youtube_id
+    VideoRequest:
+      type: object
+      description: Сериализатор видео.
+      properties:
+        category:
+          $ref: '#/components/schemas/CategoryEnum'
+        comment:
+          type: string
+          minLength: 1
+          maxLength: 50
+        youtube_url:
+          type: string
+          format: uri
+          writeOnly: true
+          minLength: 1
+      required:
+      - category
+      - youtube_url
+  securitySchemes:
+    basicAuth:
+      type: http
+      scheme: basic
+    cookieAuth:
+      type: apiKey
+      in: cookie
+      name: sessionid
+tags:
+- name: Аутентификация
+  description: Аутентификация пользователя
+- name: Профиль
+  description: Профиль пользователя
+- name: Предложка видео
+  description: Рекомендованные пользователями Youtube-видео для просмотра на стриме
+- name: Голоса
+  description: Голосование за просмотр видео из предложки
+- name: Посты
+  description: Публикации пользователей
+- name: Лайки
+  description: Лайки публикаций
+- name: Комментарии
+  description: Комментарии к публикациям
+- name: Жалобы
+  description: Жалобы на посты пользователей
+- name: Поиск
+  description: Поиск пользователей и постов

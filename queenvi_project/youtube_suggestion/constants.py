@@ -20,6 +20,7 @@ class Category(TextChoices):
 
 class CategoryConstants:
     CATEGORY_MAX_LENGTH = 20
+    MSG_ERROR = f'Допустимые категории: {Category.values}'
 
 
 class VideoServiceConstants:

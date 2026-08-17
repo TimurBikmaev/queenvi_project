@@ -7,9 +7,10 @@ class PostConstants:
     MEDIA_MAX_COUNT = 10
     MEDIA_MIN_COUNT = 1
     NAME_MAX_LENGTH = 100
-    NAME_PROFILEMAX_LENGTH = 10
+    NAME_PROFILE_MAX_LENGTH = 10
     NO_COMMENTS = 0
     NO_LIKES = 0
+    ONE_POST = 1
 
 
 class CommentConstansts:
@@ -44,7 +45,7 @@ class ReportConstants:
         'и отправить текст жалобы в поле \'other\' :)'
     )
     MSG_STATUS_TO_NOT_VIEWED = (
-        'Репорт нельзя определить нерассмотренным!'
+        'Если репорт рассмотрен, то его нельзя снова сделать нерассмотренным!'
     )
     OTHER_MAX_LENGTH = 700
     REASON_MAX_LENGTH = 20

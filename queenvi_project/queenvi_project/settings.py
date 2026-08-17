@@ -65,7 +65,8 @@ INSTALLED_APPS = [
     'django.contrib.messages',
     'django.contrib.staticfiles',
     'rest_framework',
-    'django_filters'
+    'django_filters',
+    'drf_spectacular',
 ]
 
 MIDDLEWARE = [
@@ -143,5 +144,37 @@ REST_FRAMEWORK = {
     'DEFAULT_FILTER_BACKENDS': [
         'django_filters.rest_framework.DjangoFilterBackend',
         'rest_framework.filters.OrderingFilter',
-    ]
+    ],
+    'DEFAULT_SCHEMA_CLASS': 'drf_spectacular.openapi.AutoSchema',
+}
+
+SPECTACULAR_SETTINGS = {
+    'TITLE': 'QueenVi',
+    'DESCRIPTION': (
+        'Площадка для обмена контентом '
+        'внутри фан-сообщества стримерши QueenVi.'
+    ),
+    'TAGS': [
+        {
+            'name': 'Аутентификация',
+            'description': 'Аутентификация пользователя'
+        },
+        {'name': 'Профиль', 'description': 'Профиль пользователя'},
+        {
+            'name': 'Предложка видео', 'description': 'Рекомендованные '
+            'пользователями Youtube-видео для просмотра на стриме'
+        },
+        {
+            'name': 'Голоса', 'description': 'Голосование за просмотр '
+            'видео из предложки'
+        },
+        {'name': 'Посты', 'description': 'Публикации пользователей'},
+        {'name': 'Лайки', 'description': 'Лайки публикаций'},
+        {'name': 'Комментарии', 'description': 'Комментарии к публикациям'},
+        {'name': 'Жалобы', 'description': 'Жалобы на посты пользователей'},
+        {'name': 'Поиск', 'description': 'Поиск пользователей и постов'},
+    ],
+    'COMPONENT_SPLIT_REQUEST': True,
+    'VERSION': '1.0.0',
+    'SERVE_INCLUDE_SCHEMA': False,
 }

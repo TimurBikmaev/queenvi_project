@@ -2,9 +2,9 @@ from youtube_suggestion.constants import VideoServiceConstants as VSC
 
 
 class VideoAlreadyExistsError(Exception):
-    def __init__(self, video):
+    def __init__(self, is_banned=None):
         message = 'Это видео уже опубликовано в предложке:)'
-        if video.is_banned:
+        if is_banned is True:
             message = (
                 'Это видео уже предлагали, но его уже посмотрели на стриме '
                 'или модерация отклонила его :('
