@@ -1,5 +1,7 @@
+from pathlib import Path
 from http import HTTPStatus
 
+from django.conf import settings
 from django.contrib.auth import get_user_model
 from django.urls import reverse
 import pytest
@@ -99,6 +101,48 @@ def test_post_patch_video_audio(
     extension = f'.{name.split(".")[TMC.EXTENSION_IDX]}'
     assert media.file.name.endswith(extension), (
         'При обновлении был отправлен один файл, а посту присвоился другой'
+    )
+
+
+@pytest.mark.django_db
+def test_update_post_media_deletes_old_media(auth, post_factory, file_factory):
+    post = post_factory()
+
+    old_media = Media.objects.create(
+        post=post,
+        file=file_factory(),
+        file_type=TMC.FORMAT,
+        order=TMC.FIRST_MEDIA_IDX,
+    )
+
+    auth.patch(
+        reverse('posts-detail', args=[post.public_id]),
+        {
+            'name': 'test',
+            'create_media': [file_factory()]
+        },
+        format='multipart',
+    )
+
+    assert not Media.objects.filter(pk=old_media.pk).exists(), (
+        'При обновление старое медиа у поста не удалилось из БД.'
+    )
+
+    assert Path((settings.MEDIA_ROOT)/'posts'/str(post.public_id)).exists(), (
+        'При обновлении пост не создался каталог с медиа'
+    )
+
+    assert not Path(old_media.file.path).exists(), (
+        'Старый файл не удалился из проекта'
+    )
+
+    new_media = Media.objects.filter(post=post)
+    assert new_media.count() == TMC.ONE_MEDIA, (
+        'При обновлении поста было присвоено неверное количество медиа.'
+    )
+
+    assert Path(new_media.first().file.path).exists(), (
+        'Новый файл не сохранился в директории проекта.'
     )
 
 

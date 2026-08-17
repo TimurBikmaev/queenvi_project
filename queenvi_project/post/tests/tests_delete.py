@@ -1,3 +1,4 @@
+from pathlib import Path
 from http import HTTPStatus
 
 from django.contrib.auth import get_user_model
@@ -19,8 +20,12 @@ User = get_user_model()
 def test_post_delete_correct(api_client, users, post_factory, role):
     if role is None:
         post = post_factory()
+        media = post.media.first()
+
     else:
         post = post_factory(users[role])
+        media = post.media.first()
+
         api_client.force_authenticate(user=users[role])
     response = api_client.delete(
         reverse('posts-detail', args=[post.public_id]),
@@ -36,6 +41,14 @@ def test_post_delete_correct(api_client, users, post_factory, role):
 
     assert not Post.objects.filter(public_id=post.public_id).exists(), (
         'Пост не удалился'
+    )
+
+    assert not Path(media.file.path).exists(), (
+        'Файл медиа не удалился из директории проекта.'
+    )
+
+    assert not Path(media.file.path).parent.exists(), (
+        'Каталог медиа поста не удалился из директории проекта.'
     )
 
 
