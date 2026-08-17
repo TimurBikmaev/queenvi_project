@@ -44,6 +44,7 @@ class AvatarProfileSerializer(mx.BaseSerializerMixin):
                 UC.AVATAR_MAX_SIZE,
             )
             raise serializers.ValidationError(UC.MSG_SIZE)
+
         img = Image.open(image)
         if (
             img.width > UC.AVATAR_MAX_WIDTH
@@ -59,13 +60,16 @@ class AvatarProfileSerializer(mx.BaseSerializerMixin):
                 UC.AVATAR_MAX_HEIGHT,
             )
             raise serializers.ValidationError(UC.MSG_RESOLUTION)
+
         return image
 
     def to_representation(self, obj):
         """Если юзер поставил свою аватарку, то скрываем твичовскую."""
         data = super().to_representation(obj)
+
         if obj.custom_avatar:
             del data['twitch_avatar']
+
         return data
 
 
@@ -155,13 +159,31 @@ class ShortPostSerializer(mx.BaseSerializerMixin):
         return obj.is_liked
 
 
+class SearchPostSerializer(mx.BaseSerializerMixin):
+    """Краткая информация о посте в поиске."""
+    user = serializers.SerializerMethodField()
+    name = serializers.SerializerMethodField(read_only=True)
+    preview = serializers.SerializerMethodField(read_only=True)
+
+    class Meta(ShortPostSerializer.Meta):
+        fields = ['public_id', 'name', 'preview', 'user',]
+
+    def get_name(self, obj) -> str:
+        """Возвращает лишь первые несколько символов для название."""
+        return obj.name[:cs.PostConstants.NAME_PROFILE_MAX_LENGTH]
+
+    def get_preview(self, obj) -> PreviewMediaSerializer:
+        preview = obj.preview_media[cs.MediaConstants.PREVIEW_ORDER]
+        return PreviewMediaSerializer(preview, context=self.context).data
+
+    def get_user(self, obj) -> str:
+        return obj.user.username
+
+
 class SearchSerializer(serializers.Serializer):
     """Краткая информация о посте в поиске."""
     users = ShortProfileSerializer(many=True)
-    posts = ShortPostSerializer(many=True)
-
-    class Meta(ShortPostSerializer.Meta):
-        fields = ['public_id', 'name', 'preview']
+    posts = SearchPostSerializer(many=True)
 
 
 class ModerationShortPostSerializer(ShortPostSerializer):
@@ -201,12 +223,16 @@ class PostSerializer(ShortPostSerializer):
             media_data = MediaUtils.collect_media_data(files)
         except MediaFormatValidationError as e:
             raise serializers.ValidationError(str(e))
+
         return media_data
 
     def create(self, validated_data):
         files = validated_data.pop('create_media')
+
         media_data = self.check_media_data(files)
+
         post = Post.objects.create(**validated_data)
+
         post.likes_count = cs.PostConstants.NO_LIKES
         post.comments_count = cs.PostConstants.NO_COMMENTS
         post.is_liked = False
@@ -214,12 +240,14 @@ class PostSerializer(ShortPostSerializer):
             Media(post=post, **data)
             for data in media_data
         )
+
         logger.info(
             'Юзер %s (%s) создал пост %s',
             post.user.username,
             post.user.role,
             post.public_id
         )
+
         return post
 
     def update(self, instance, validated_data):
@@ -227,7 +255,9 @@ class PostSerializer(ShortPostSerializer):
         description = validated_data.get('description')
         is_for_stream = validated_data.get('is_for_stream')
         files = validated_data.pop('create_media', None)
+
         changes = {}
+
         if name is not None:
             changes['name'] = (instance.name, name)
         if description is not None:
@@ -238,13 +268,17 @@ class PostSerializer(ShortPostSerializer):
         if files is not None:
             media_data = self.check_media_data(files)
             changes['media'] = ('Изменены медиа поста')
+
             instance.media.all().delete()
             MediaUtils.del_media_catalog(instance.public_id)
+
             Media.objects.bulk_create(
                 Media(post=instance, **data)
                 for data in media_data
             )
+
         post = super().update(instance, validated_data)
+
         logger.info(
             'Юзер %s (%s) обновил пост %s: %s',
             post.user.username,
@@ -255,7 +289,9 @@ class PostSerializer(ShortPostSerializer):
         return post
 
 
-class ModerationPostSerializer(mx.UpdateBanMixin, mx.BaseSerializerMixin):
+class ModerationPostSerializer(
+    mx.UpdateBanSerializerMixin, mx.BaseSerializerMixin
+):
     """Отображение и редактирование поста для модератора."""
     user = ShortProfileSerializer(read_only=True)
     media = MediaSerializer(
@@ -311,24 +347,31 @@ class ModerationProfileSerializer(ProfileSerializer):
 
     def update(self, instance, validated_data):
         user = self.context['request'].user
+
         role = validated_data.get('role')
         is_banned = validated_data.get('is_banned')
+
         changes = {}
         try:
             CUV.user_cannot_change_himself(user, self.instance)
             CUV.can_user_change_other_user(user, self.instance)
+
             if role is not None:
                 CUV.can_user_change_role(user, self.instance)
                 CUV.only_one_streamer(user, role, self.instance)
                 changes['role'] = (instance.role, role)
+
             if is_banned is not None:
                 changes['is_banned'] = (instance.is_banned, is_banned)
         except ChangeUserValidationError as e:
             raise serializers.ValidationError(str(e))
+
         if is_banned is not None:
             Post.objects.filter(user=instance).update(is_banned=is_banned)
             Video.objects.filter(user=instance).update(is_banned=is_banned)
+
         new_user = super().update(instance, validated_data)
+
         logger.info(
             'Юзер %s (%s) измененил юзера %s (%s): %s',
             user.username,
@@ -337,6 +380,7 @@ class ModerationProfileSerializer(ProfileSerializer):
             instance.role,
             changes
         )
+
         return new_user
 
 
@@ -355,9 +399,11 @@ class CreateReportSerializer(mx.BaseSerializerMixin):
 
     def create(self, validated_data):
         user = self.context['request'].user
+
         post = validated_data['post']
         reason = validated_data['reason']
         other = validated_data.get('other')
+
         if not post.user.is_user:
             logger.warning(
                 'Юзер %s (%s) попытался зарепортить пост %s автора %s (%s)',
@@ -370,6 +416,7 @@ class CreateReportSerializer(mx.BaseSerializerMixin):
             raise serializers.ValidationError(
                 cs.ReportConstants.MSG_CANNOT_REPORT_STAFF
             )
+
         if (
             other is not None and reason != cs.ReportReason.OTHER
             or reason == cs.ReportReason.OTHER and other is None
@@ -386,7 +433,9 @@ class CreateReportSerializer(mx.BaseSerializerMixin):
             raise serializers.ValidationError(
                 cs.ReportConstants.MSG_OTHER_WITHOUT_REASON
             )
+
         report = super().create(validated_data)
+
         logger.info(
             'Юзер %s (%s) отправил репорт %s на пост %s автора %s (%s)',
             user.username,
@@ -396,6 +445,7 @@ class CreateReportSerializer(mx.BaseSerializerMixin):
             post.user.username,
             post.user.role
         )
+
         return report
 
     def to_representation(self, obj):
@@ -429,16 +479,22 @@ class ModerationReportSerializer(mx.BaseSerializerMixin):
 
     def update(self, instance, validated_data):
         user = self.context['request'].user
-        old_status = instance.status
         status = validated_data.get('status')
+
+        old_status = instance.status
+
         if status == cs.ReportStatus.APPROVED:
             instance.post.is_banned = True
             instance.post.save(update_fields=['is_banned'])
+
         elif status == cs.ReportStatus.REJECTED:
             instance.post.is_banned = False
             instance.post.save(update_fields=['is_banned'])
+
         validated_data['moder'] = user
+
         instance = super().update(instance, validated_data)
+
         logger.info(
             'Юзер %s (%s) изменил статус репорта %s c %s на %s '
             'от юзера %s на пост %s автора %s',
@@ -451,6 +507,7 @@ class ModerationReportSerializer(mx.BaseSerializerMixin):
             instance.post.public_id,
             instance.post.user.username
         )
+
         return instance
 
     def get_user(self, obj) -> str:
@@ -465,12 +522,15 @@ class ModerationReportSerializer(mx.BaseSerializerMixin):
         """Возвращаем юзернейм модератора, который рассмотрел репорт."""
         if obj.moder is not None:
             return obj.moder.username
+
         return None
 
     def validate_status(self, value):
         """Если репорт рассмотрен, то поменять статус на not_viewed нельзя."""
         user = self.context['request'].user
+
         report = self.instance
+
         if value == cs.ReportStatus.NOT_VIEWED:
             logger.warning(
                 'Юзер %s (%s) попытался изменить статус репорта %s c %s на %s '
@@ -487,6 +547,7 @@ class ModerationReportSerializer(mx.BaseSerializerMixin):
             raise serializers.ValidationError(
                 cs.ReportConstants.MSG_STATUS_TO_NOT_VIEWED
             )
+
         return value
 
 
@@ -539,11 +600,15 @@ class VideoSerializer(mx.BaseSerializerMixin):
 
     def update(self, instance, validated_data):
         user = self.context['request'].user
+
         category = validated_data.get('category')
         comment = validated_data.get('comment')
+
         changes = {}
+
         if category is not None:
             changes['category'] = (instance.category, category)
+
         if comment is not None:
             changes['comment'] = (instance.comment, comment)
 
@@ -557,7 +622,9 @@ class VideoSerializer(mx.BaseSerializerMixin):
             raise serializers.ValidationError(
                 VideoConstants.MSG_CANNOT_CHANGE_BANNED
             )
+
         video = super().update(instance, validated_data)
+
         logger.info(
             'Юзер %s (%s) обновил видео %s: %s',
             user.username,
@@ -565,6 +632,7 @@ class VideoSerializer(mx.BaseSerializerMixin):
             video.public_id,
             changes
         )
+
         return video
 
     @swg.extend_schema_field({
@@ -575,7 +643,9 @@ class VideoSerializer(mx.BaseSerializerMixin):
         return obj.is_voted
 
 
-class ModerationVideoSerializer(mx.UpdateBanMixin, mx.BaseSerializerMixin):
+class ModerationVideoSerializer(
+    mx.UpdateBanSerializerMixin, mx.BaseSerializerMixin
+):
     """Сериализатор видео для модерации."""
     user = ShortProfileSerializer(read_only=True)
     votings_count = serializers.IntegerField(read_only=True)

@@ -7,6 +7,7 @@ from core.constants import PublicIdConstants
 
 
 router_v1 = DefaultRouter()
+
 router_v1.register('profile', views.UserViewSet, basename='profile')
 router_v1.register('posts', views.PostViewSet, basename='posts')
 router_v1.register(

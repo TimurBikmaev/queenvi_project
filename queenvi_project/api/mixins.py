@@ -9,7 +9,6 @@ from core.validators import ChangeBanStatusValidator as CBSV
 logger = logging.getLogger(__name__)
 
 
-# views.py
 class HttpLookupMixin:
     http_method_names = ['get', 'post', 'patch', 'delete']
     lookup_field = 'public_id'
@@ -19,7 +18,6 @@ class ListUpdateMixin(mx.ListModelMixin, mx.UpdateModelMixin):
     pass
 
 
-# serializers.py
 class BaseSerializerMixin(serializers.ModelSerializer):
     public_id = serializers.ReadOnlyField()
 
@@ -37,18 +35,21 @@ class VideoSerializerMixin:
     votings_count = serializers.ReadOnlyField()
 
 
-class UpdateBanMixin:
+class UpdateBanSerializerMixin:
     def update(self, instance, validated_data):
         user = self.context['request'].user
         is_banned = validated_data.get('is_banned')
+
         try:
             CBSV.cannot_change_streamer_obj(instance, user)
             if is_banned is not None and is_banned is False:
                 CBSV.cannot_unban_obj_of_banned_user(instance, user)
         except ChangeObjValidationError as e:
             raise serializers.ValidationError(str(e))
+
         old_is_banned = instance.is_banned
         obj = super().update(instance, validated_data)
+
         if is_banned is not None:
             logger.info(
                 'Юзер %s (%s) изменил статус бана объекта %s (%s) c %s на %s',
@@ -59,4 +60,5 @@ class UpdateBanMixin:
                 old_is_banned,
                 is_banned
             )
+
         return obj
