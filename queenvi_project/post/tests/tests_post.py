@@ -1,5 +1,7 @@
+from pathlib import Path
 from http import HTTPStatus
 
+from django.conf import settings
 from django.urls import reverse
 import pytest
 
@@ -21,6 +23,7 @@ def test_post_create_correct(api_client, users, file_factory, role,):
         'is_for_stream': False,
         'create_media': [file_factory(), file_factory(name='test_2.jpg')],
     }
+
     if role is not None:
         api_client.force_authenticate(user=users[role])
     response = api_client.post(
@@ -82,6 +85,13 @@ def test_post_create_correct(api_client, users, file_factory, role,):
         assert post_file.file_type == MediaType.PHOTO, (
             'У загруженного файла неверно определен "file_type"'
         )
+        assert Path(post_file.file.path).exists(), (
+            'Новый файл не сохранился в директории проекта.'
+        )
+
+    assert Path((settings.MEDIA_ROOT)/'posts'/str(post.public_id)).exists(), (
+        'При создании поста не создался каталог с медиа'
+    )
 
 
 @pytest.mark.parametrize(

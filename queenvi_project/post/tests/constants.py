@@ -38,6 +38,7 @@ class TestMediaConstants:
     READ_FILE_FROM_BEGIN = 0
     SECOND_MEDIA_IDX = 1
     THIRD_MEDIA_IDX = 2
+    TWO_MEDIA = 2
 
 
 class TestReportConstants:
