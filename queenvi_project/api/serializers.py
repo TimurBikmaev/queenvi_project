@@ -1,6 +1,7 @@
 import logging
 
 from django.contrib.auth import get_user_model
+from drf_spectacular import utils as swg
 from PIL import Image
 from rest_framework import serializers
 
@@ -14,7 +15,9 @@ from user.constants import UserConstants as UC, UserRole
 from user.errors import ChangeUserValidationError
 from user.validators import ChangeUserValidator as CUV
 from youtube_suggestion import errors as er
-from youtube_suggestion.constants import Category, VideoConstants
+from youtube_suggestion.constants import (
+    Category, CategoryConstants, VideoConstants
+)
 from youtube_suggestion.models import Video
 from youtube_suggestion.services import VideoSerivce
 
@@ -40,9 +43,7 @@ class AvatarProfileSerializer(mx.BaseSerializerMixin):
                 image.size,
                 UC.AVATAR_MAX_SIZE,
             )
-            raise serializers.ValidationError(
-                f'Максимальный размер файла {UC.AVATAR_MAX_SIZE} МБ'
-            )
+            raise serializers.ValidationError(UC.MSG_SIZE)
         img = Image.open(image)
         if (
             img.width > UC.AVATAR_MAX_WIDTH
@@ -57,10 +58,7 @@ class AvatarProfileSerializer(mx.BaseSerializerMixin):
                 UC.AVATAR_MAX_WIDTH,
                 UC.AVATAR_MAX_HEIGHT,
             )
-            raise serializers.ValidationError(
-                'Максимальное разрешение файла '
-                f'{UC.AVATAR_MAX_WIDTH}x{UC.AVATAR_MAX_HEIGHT}'
-            )
+            raise serializers.ValidationError(UC.MSG_RESOLUTION)
         return image
 
     def to_representation(self, obj):
@@ -71,11 +69,17 @@ class AvatarProfileSerializer(mx.BaseSerializerMixin):
         return data
 
 
+@swg.extend_schema_serializer(exclude_fields='twitch_avatar')
 class ShortProfileSerializer(AvatarProfileSerializer):
     """Краткая информация профиля юзера."""
+    username = serializers.SerializerMethodField()
 
     class Meta(AvatarProfileSerializer.Meta):
         fields = AvatarProfileSerializer.Meta.fields + ['username']
+
+    @swg.extend_schema_field(str)
+    def get_username(self, obj):
+        return obj.username
 
 
 class CommentSerializer(mx.BaseSerializerMixin):
@@ -92,15 +96,27 @@ class CommentSerializer(mx.BaseSerializerMixin):
 
 class PreviewMediaSerializer(mx.BaseSerializerMixin):
     """Превью поста."""
+    file_type = serializers.SerializerMethodField()
+
     class Meta:
         model = Media
         fields = ['file', 'file_type']
 
+    @swg.extend_schema_field(str)
+    def get_file_type(self, obj):
+        return obj.file_type
+
 
 class MediaSerializer(PreviewMediaSerializer):
     """Серилизатор медиа."""
+    order = serializers.SerializerMethodField()
+
     class Meta(PreviewMediaSerializer.Meta):
         fields = PreviewMediaSerializer.Meta.fields + ['order', 'created_at']
+
+    @swg.extend_schema_field(int)
+    def get_order(self, obj):
+        return obj.order
 
 
 class ShortPostSerializer(mx.BaseSerializerMixin):
@@ -109,43 +125,48 @@ class ShortPostSerializer(mx.BaseSerializerMixin):
     name = serializers.SerializerMethodField(read_only=True)
     description = serializers.SerializerMethodField(read_only=True)
     preview = serializers.SerializerMethodField(read_only=True)
-    likes_count = serializers.ReadOnlyField()
-    comments_count = serializers.ReadOnlyField()
-    is_liked = serializers.ReadOnlyField()
+    likes_count = serializers.IntegerField(read_only=True)
+    comments_count = serializers.IntegerField(read_only=True)
+    is_liked = serializers.SerializerMethodField()
 
     class Meta:
         model = Post
         fields = SC.POST_BASE_FIELDS + ['preview']
 
-    def get_name(self, obj):
+    def get_name(self, obj) -> str:
         """Возвращает лишь первые несколько символов для название."""
-        return obj.name[:cs.PostConstants.NAME_PROFILEMAX_LENGTH]
+        return obj.name[:cs.PostConstants.NAME_PROFILE_MAX_LENGTH]
 
-    def get_description(self, obj):
+    def get_description(self, obj) -> str:
         """Возвращает лишь первые несколько символов для описания."""
         return obj.description[
             :cs.PostConstants.DESCRIPTION_PROFILE_MAX_LENGTH
         ]
 
-    def get_preview(self, obj):
+    def get_preview(self, obj) -> PreviewMediaSerializer:
         preview = obj.preview_media[cs.MediaConstants.PREVIEW_ORDER]
         return PreviewMediaSerializer(preview, context=self.context).data
 
+    @swg.extend_schema_field({
+        'type': 'boolean',
+        'example': False,
+    })
+    def get_is_liked(self, obj):
+        return obj.is_liked
 
-class SearchPostSerializer(mx.BaseSerializerMixin):
+
+class SearchSerializer(serializers.Serializer):
     """Краткая информация о посте в поиске."""
-    preview = serializers.SerializerMethodField(read_only=True)
+    users = ShortProfileSerializer(many=True)
+    posts = ShortPostSerializer(many=True)
 
     class Meta(ShortPostSerializer.Meta):
         fields = ['public_id', 'name', 'preview']
 
-    def get_preview(self, obj):
-        preview = obj.preview_media[cs.MediaConstants.PREVIEW_ORDER]
-        return PreviewMediaSerializer(preview, context=self.context).data
-
 
 class ModerationShortPostSerializer(ShortPostSerializer):
     """Отображение части поста для модератора."""
+
     class Meta(ShortPostSerializer.Meta):
         fields = ShortPostSerializer.Meta.fields + ['is_banned']
 
@@ -242,9 +263,9 @@ class ModerationPostSerializer(mx.UpdateBanMixin, mx.BaseSerializerMixin):
         many=True,
         read_only=True
     )
-    likes_count = serializers.ReadOnlyField()
-    comments_count = serializers.ReadOnlyField()
-    is_liked = serializers.ReadOnlyField()
+    likes_count = serializers.IntegerField(read_only=True)
+    comments_count = serializers.IntegerField(read_only=True)
+    is_liked = serializers.BooleanField(read_only=True)
 
     class Meta(ModerationShortPostSerializer.Meta):
         fields = SC.POST_BASE_FIELDS + ['media', 'is_banned']
@@ -255,7 +276,7 @@ class ModerationPostSerializer(mx.UpdateBanMixin, mx.BaseSerializerMixin):
 
 class ProfileSerializer(ShortProfileSerializer):
     """Профиль для обычного юзера."""
-    posts_count = serializers.ReadOnlyField()
+    posts_count = serializers.SerializerMethodField()
     posts = ShortPostSerializer(
         many=True,
         source='visible_posts',
@@ -266,6 +287,13 @@ class ProfileSerializer(ShortProfileSerializer):
         fields = ShortProfileSerializer.Meta.fields + [
             'posts_count', 'posts', 'created_at', 'updated_at'
         ]
+
+    @swg.extend_schema_field({
+        'type': 'integer',
+        'example': cs.PostConstants.ONE_POST,
+    })
+    def get_posts_count(self, obj):
+        return obj.posts_count
 
 
 class ModerationProfileSerializer(ProfileSerializer):
@@ -425,18 +453,19 @@ class ModerationReportSerializer(mx.BaseSerializerMixin):
         )
         return instance
 
-    def get_user(self, obj):
+    def get_user(self, obj) -> str:
         """Возвращаем юзернейм того, кто кинул репорт."""
         return obj.user.username
 
-    def get_post(self, obj):
+    def get_post(self, obj) -> str:
         """Возвращаем public_id поста, который зарепортили."""
         return obj.post.public_id
 
-    def get_moder(self, obj):
+    def get_moder(self, obj) -> str | None:
         """Возвращаем юзернейм модератора, который рассмотрел репорт."""
         if obj.moder is not None:
             return obj.moder.username
+        return None
 
     def validate_status(self, value):
         """Если репорт рассмотрен, то поменять статус на not_viewed нельзя."""
@@ -470,13 +499,11 @@ class VideoSerializer(mx.BaseSerializerMixin):
         allow_blank=False,
     )
     user = ShortProfileSerializer(read_only=True)
-    votings_count = serializers.ReadOnlyField()
-    is_voted = serializers.ReadOnlyField()
+    votings_count = serializers.IntegerField(read_only=True)
+    is_voted = serializers.SerializerMethodField()
     category = serializers.ChoiceField(
         choices=Category.choices,
-        error_messages={
-            'invalid_choice': f'Допустимые категории: {Category.values}'
-        }
+        error_messages={'invalid_choice': CategoryConstants.MSG_ERROR}
     )
 
     class Meta:
@@ -540,12 +567,19 @@ class VideoSerializer(mx.BaseSerializerMixin):
         )
         return video
 
+    @swg.extend_schema_field({
+        'type': 'boolean',
+        'example': False,
+    })
+    def get_is_voted(self, obj):
+        return obj.is_voted
+
 
 class ModerationVideoSerializer(mx.UpdateBanMixin, mx.BaseSerializerMixin):
     """Сериализатор видео для модерации."""
     user = ShortProfileSerializer(read_only=True)
-    votings_count = serializers.ReadOnlyField()
-    is_voted = serializers.ReadOnlyField()
+    votings_count = serializers.IntegerField(read_only=True)
+    is_voted = serializers.BooleanField(read_only=True)
 
     class Meta(VideoSerializer.Meta):
         fields = SC.VIDEO_BASE_FIELDS + ['is_banned']

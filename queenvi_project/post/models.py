@@ -102,6 +102,7 @@ class Comment(PublicIdMixin, CreatedAtMixin, UpdatedMixin):
     class Meta:
         verbose_name = 'Комментарий'
         verbose_name_plural = 'Комментарии'
+        ordering = ['-created_at']
         indexes = [
             models.Index(fields=['post']),
             models.Index(fields=['created_at']),
@@ -152,6 +153,7 @@ class Report(PublicIdMixin, CreatedAtMixin, UpdatedMixin):
     class Meta:
         verbose_name = 'Репорт'
         verbose_name_plural = 'Репорты'
+        ordering = ['-created_at']
         constraints = [
             models.UniqueConstraint(
                 fields=['post', 'user'],

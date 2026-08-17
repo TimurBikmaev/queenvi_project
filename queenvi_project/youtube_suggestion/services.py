@@ -69,7 +69,9 @@ class VideoSerivce:
                 user.role,
                 video.youtube_id
             )
-            raise VideoAlreadyExistsError(video)
+            if video.is_banned is True:
+                raise VideoAlreadyExistsError(is_banned=True)
+            raise VideoAlreadyExistsError()
 
     @staticmethod
     def get_video_data(user, video_id):
