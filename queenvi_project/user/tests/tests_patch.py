@@ -2,12 +2,16 @@ from http import HTTPStatus
 
 from django.contrib.auth import get_user_model
 from django.urls import reverse
+from django.utils import timezone
 import pytest
 
 from core.constants import TestConstants
 from post.models import Media, Post
 from post.tests.constants import TestMediaConstants as TMC
 from user.constants import UserRole
+from youtube_suggestion.constants import Category
+from youtube_suggestion.models import Video
+from youtube_suggestion.tests.constants import TestVideoConstants as TVC
 
 
 User = get_user_model()
@@ -119,7 +123,27 @@ def test_user_patch_moder_cannot_change_staff(api_client, users, role):
     )
 
 
-def test_user_patch_ban_user_ban_his_posts(api_client, users, image_factory):
+@pytest.mark.parametrize(
+    'value',
+    [True, False],
+)
+def test_user_patch_ban_user_ban_his_posts_videos(
+        api_client, users, image_factory, value
+):
+    video = Video.objects.create(
+        youtube_id='test',
+        user=users[UserRole.USER],
+        category=Category.HUMUROUS,
+        title='test',
+        preview_url='https://example.com/test-video',
+        channel_name='test',
+        pub_date=timezone.now(),
+        duration=TVC.DURATION,
+        views_count=TVC.COUNT_VIEWS,
+        likes_count=TVC.COUNT_LIKES,
+        comments_count=TVC.COUNT_COMMENTS,
+    )
+
     post = Post.objects.create(name='test', user=users[UserRole.USER])
     Media.objects.create(
         post=post,
@@ -131,11 +155,27 @@ def test_user_patch_ban_user_ban_his_posts(api_client, users, image_factory):
     api_client.force_authenticate(user=users[UserRole.MODER])
     api_client.patch(
         reverse('profile-detail', args=[users[UserRole.USER].username]),
-        {'is_banned': True}
+        {'is_banned': value}
     )
 
     post.refresh_from_db()
-    assert post.is_banned is True, 'При бане юзера должны баниться и его посты'
+    video.refresh_from_db()
+
+    if value is True:
+        assert post.is_banned is True, (
+            'При бане юзера должны баниться и его посты'
+        )
+        assert video.is_banned is True, (
+            'При бане юзера должны баниться и его видео'
+        )
+        return
+
+    assert post.is_banned is False, (
+        'При разбане юзера должны разбаниться и его посты'
+    )
+    assert video.is_banned is False, (
+        'При разбане юзера должны разбаниться и его видео'
+    )
 
 
 def test_user_patch_by_banned(api_client, users):

@@ -7,12 +7,12 @@ import pytest
 
 from api.constants import SerializersConstants
 from core.constants import TestConstants
+from user.constants import UserRole
 from youtube_suggestion.constants import Category
 from youtube_suggestion.models import Voting
 from youtube_suggestion.tests.constants import (
     MessageConstants, TestVideoConstants as TVC
 )
-from user.constants import UserRole
 
 
 @pytest.mark.parametrize(
@@ -25,22 +25,37 @@ from user.constants import UserRole
     ],
 )
 def test_video_list_correct(
-    api_client, users, video_factory, role, has_private_field
+    api_client, users, video_factory, new_user, role, has_private_field
 ):
-    video_factory()
-    video_factory(youtube_id='test_2', is_banned=True)
-    video = video_factory('test_3')
+    video_factory(is_banned=True)
 
-    if role is None:
-        Voting.objects.create(user=users[UserRole.USER], video=video)
-    else:
+    video_factory(youtube_id='test_2')
+
+    video_2 = video_factory(youtube_id='test_3')
+    video_2.created_at = timezone.now() - timedelta(days=TVC.DELTA_DAYS_TWO)
+    video_2.save(update_fields=['created_at'])
+
+    video_3 = video_factory(youtube_id='test_4')
+
+    video_4 = video_factory(youtube_id='test_5')
+
+    Voting.objects.bulk_create([
+        Voting(
+            user=users[UserRole.USER],
+            video=video_obj
+        )
+        for video_obj in (video_2, video_3, video_4)
+    ])
+
+    Voting.objects.create(user=new_user, video=video_4)
+
+    if role is not None:
         api_client.force_authenticate(user=users[role])
-        Voting.objects.create(user=users[role], video=video)
     response = api_client.get(reverse('videos-list'))
 
     assert response.status_code == HTTPStatus.OK
 
-    assert len(response.data) == TVC.TWO_VIDEOS, (
+    assert len(response.data) == TVC.FOUR_VIDEOS, (
         'Без фильтров забаненные видео не должны возвращаться'
     )
 
@@ -48,6 +63,14 @@ def test_video_list_correct(
         response.data[TVC.FIRST_VIDEO_IDX]['votings_count']
         > response.data[TVC.SECOND_VIDEO_IDX]['votings_count']
     ), 'По умолчанию видео должны быть отсортированы по убыванию голосов'
+
+    assert (
+        response.data[TVC.SECOND_VIDEO_IDX]['created_at']
+        > response.data[TVC.THIRD_VIDEO_IDX]['created_at']
+    ), (
+        'По умолчанию видео c одинаковыми голосами '
+        'должны быть отсортированы от новых к старым'
+    )
 
     video_fields = [*SerializersConstants.VIDEO_BASE_FIELDS]
     assert set(video_fields) <= response.data[TVC.FIRST_VIDEO_IDX].keys(), (
@@ -58,8 +81,8 @@ def test_video_list_correct(
         ('is_banned' in response.data[TVC.FIRST_VIDEO_IDX].keys())
         is has_private_field
     ), (
-        f'Видимость "is_banned" для юзера {role} - {'is_banned' in video}, '
-        f'хотя должно быть {has_private_field}'
+        f'Видимость "is_banned" для юзера {role} '
+        f'должна быть {has_private_field}'
     )
 
 

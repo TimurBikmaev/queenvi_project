@@ -7,7 +7,7 @@ import pytest
 
 from api.constants import SerializersConstants
 from core.constants import TestConstants
-from post.constants import PostConstants
+from post.constants import FilterConstants as FC, PostConstants
 from post.models import Comment, Like
 from post.tests.constants import (
     TestMediaConstants as TMC, MessageConstants, TestPostConstants as TPC,
@@ -27,8 +27,11 @@ from user.constants import UserRole
 def test_post_list_correct(
     api_client, users, post_factory, role, has_private_field
 ):
-    post_factory(name='empty_desc')
     post_factory(is_banned=True)
+    post_factory(is_for_stream=False)
+
+    post_factory(name='empty_desc')
+
     post = post_factory(description='12345678910')
     post.created_at = timezone.now() - timedelta(days=TPC.DELTA_TWO_DAYS)
     post.save(update_fields=['created_at'])
@@ -38,9 +41,12 @@ def test_post_list_correct(
     response = api_client.get(reverse('posts-list'))
 
     assert response.status_code == HTTPStatus.OK
+
     assert len(response.data) == TPC.TWO_POSTS, (
-        'Без фильтров забаненные посты не должны возвращаться'
+        'Без фильтров забаненные посты и посты не для просмотра на стриме '
+        'не должны возвращаться'
     )
+
     assert (
         response.data[TPC.FIRST_POST_IDX]['created_at']
         > response.data[TPC.SECOND_POST_IDX]['created_at']
@@ -134,6 +140,32 @@ def test_post_list_filter_is_for_stream(auth, post_factory, value):
     )
     assert response.data[TPC.FIRST_POST_IDX]['is_for_stream'] is value, (
         'Фильтр is_for_stream вернул пост с неверным значением фильтра'
+    )
+
+
+@pytest.mark.parametrize(
+    'period, days',
+    [
+        ('today', TPC.NO_DELTA_DAYS),
+        ('week', FC.DAYS_IN_WEEK),
+        ('month', FC.DAYS_IN_MONTH),
+        ('year', FC.DAYS_IN_YEAR),
+    ],
+)
+def test_post_list_filter_created(
+    auth, post_factory, period, days
+):
+    post_factory()
+    post = post_factory()
+    post.created_at = timezone.now() - timezone.timedelta(
+        days=days + TPC.ONE_DAY
+    )
+    post.save(update_fields=['created_at'])
+
+    response = auth.get(reverse('posts-list'), {'created': period})
+
+    assert len(response.data) == TPC.ONE_POST, (
+        f'Фильтр created={period} вернул неверное количество постов'
     )
 
 
