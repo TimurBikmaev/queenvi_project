@@ -9,6 +9,7 @@ from core.constants import TestConstants
 from post.constants import CommentConstansts
 from post.models import Comment
 from post.tests.constants import TestCommentConstants as TCC
+from user.constants import UserRole
 
 
 @pytest.mark.parametrize(
@@ -52,6 +53,54 @@ def test_comment_list_correct(
         'В комментах отсутствуют поля '
         f'{set(comment_fields) - response.data[TCC.FIRST_COMMENT_IDX].keys()}'
     )
+
+
+@pytest.mark.parametrize(
+    'value',
+    [True, 'all'],
+)
+@pytest.mark.parametrize(
+    'role',
+    TestConstants.PARAMS_AUTH_USERS,
+)
+def test_comment_list_filter_is_banned(
+    api_client, users, post_factory, comment_factory, value, new_user, role
+):
+    post = post_factory()
+
+    comment_factory()
+
+    comment_factory(user=new_user)
+    new_user.is_banned = True
+    new_user.save(update_fields=['is_banned'])
+
+    api_client.force_authenticate(users[role])
+    response = api_client.get(
+        reverse('comments-list', args=[post.public_id]),
+        {'is_banned': value}
+    )
+
+    first_comment = response.data[TCC.FIRST_COMMENT_IDX]
+
+    if role != UserRole.USER and value is True:
+        assert len(response.data) == TCC.ONE_COMMENT, (
+            'Фильтр is_banned не работает'
+        )
+        assert first_comment['user']['username'] == new_user.username, (
+            'Фильтр is_banned при значении "True" вернул не те комменты'
+        )
+        return
+
+    if role != UserRole.USER and value == 'all':
+        assert len(response.data) == TCC.TWO_COMMENTS, (
+            'Фильтр is_banned при значении "all" вернул не все комменты'
+        )
+        return
+
+    assert (
+        first_comment['user']['username']
+        == users[UserRole.USER].username
+    ), 'Фильтр is_banned для обычного юзера вернул коммент забаненного юзера'
 
 
 @pytest.mark.parametrize(
@@ -220,7 +269,7 @@ def test_comment_delete_correct(api_client, users, comment_factory, role):
     'role',
     TestConstants.PARAMS_AUTH_USERS,
 )
-def test_comment_delete_only_author(
+def test_comment_delete_only_author_or_staff(
     api_client, users, comment_factory, role, new_user
 ):
     comment = comment_factory(user=new_user)
@@ -231,8 +280,16 @@ def test_comment_delete_only_author(
         reverse('comments-detail', args=[post.public_id, comment.public_id])
     )
 
+    if role != UserRole.USER:
+        assert response.status_code == HTTPStatus.NO_CONTENT
+
+        assert not Comment.objects.filter(pk=comment.pk).exists(), (
+            'Модер и стример могут удалять чужие комменты'
+        )
+        return
+
     assert response.status_code == HTTPStatus.FORBIDDEN, (
-        'Только автор может удалять свои комменты'
+        'Обычный юзер не может удалить чужой коммент'
     )
 
 

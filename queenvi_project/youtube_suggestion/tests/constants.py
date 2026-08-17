@@ -12,6 +12,7 @@ class TestVideoConstants:
     DELTA_DAYS_TWO = 2
     DURATION = 90
     FIRST_VIDEO_IDX = 0
+    FOUR_VIDEOS = 4
     INVALID_NAME = 1
     NO_COMMENTS = 0
     NO_VOTES = 0
@@ -20,6 +21,7 @@ class TestVideoConstants:
     ONE_LIKE = 1
     ONE_VIDEO = 1
     SECOND_VIDEO_IDX = 1
+    THIRD_VIDEO_IDX = 2
     TWO_VIDEOS = 2
 
 

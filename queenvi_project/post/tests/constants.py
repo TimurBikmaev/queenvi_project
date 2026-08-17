@@ -10,9 +10,11 @@ class TestPostConstants:
     FIRST_POST_IDX = 0
     INVALID_NAME = 1
     NO_COMMENTS = 0
+    NO_DELTA_DAYS = 0
     NO_LIKES = 0
     NO_POSTS = 0
     ONE_COMMENT = 1
+    ONE_DAY = 1
     ONE_LIKE = 1
     ONE_POST = 1
     SECOND_POST_IDX = 1
