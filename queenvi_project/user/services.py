@@ -22,12 +22,14 @@ class TwitchLoginService:
         """Формирование урла для аутентификации."""
         state = secrets.token_urlsafe(TwitchLoginConstants.LENGTH_STATE)
         request.session['oauth_state'] = state
+
         params = {
             'client_id': settings.TWITCH_CLIENT_ID,
             'redirect_uri': settings.TWITCH_REDIRECT_URI,
             'response_type': TwitchLoginConstants.TYPE_RESPONSE,
             'state': state,
         }
+
         return TwitchLoginConstants.URL_AUTH + urlencode(params)
 
     @staticmethod
@@ -36,6 +38,7 @@ class TwitchLoginService:
         TwitchLoginService.check_state(request)
         access_token = TwitchLoginService.get_access_token(request)
         user_data = TwitchLoginService.get_user_data(access_token)
+
         return TwitchLoginService.create_user_from_twitch_data(
             request, user_data
         )
@@ -45,6 +48,7 @@ class TwitchLoginService:
         """Проверка, что логин и коллбэк односятся к одной сессии."""
         received_state = request.GET.get('state')
         saved_state = request.session.pop('oauth_state', None)
+
         if received_state != saved_state:
             logger.warning('Несовпадение OAuth state при аутентификации')
             raise AuthValidationError()
@@ -53,6 +57,7 @@ class TwitchLoginService:
     def get_access_token(request):
         """Получение токена доступа для запроса к данным юзера."""
         auth_code = request.GET.get('code')
+
         try:
             response = requests.post(
                 TwitchLoginConstants.URL_TOKEN,
@@ -73,9 +78,11 @@ class TwitchLoginService:
             raise AuthValidationError()
 
         access_token = response.json().get('access_token')
+
         if access_token is None:
             logger.error('Twitch не вернул access token')
             raise AuthValidationError()
+
         return f'Bearer {access_token}'
 
     @staticmethod
@@ -111,7 +118,8 @@ class TwitchLoginService:
                 'twitch_avatar': data['profile_image_url'],
             },
         )
-        if created:
+
+        if created is True:
             user.set_unusable_password()
             user.save(update_fields=['password'])
             logger.info(

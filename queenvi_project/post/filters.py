@@ -15,6 +15,7 @@ class PostFilter(filters.FilterSet):
 
     def filter_created(self, queryset, name, value):
         now = timezone.localtime()
+
         if value == 'today':
             start_of_day = now.replace(
                 hour=FC.START_DAY_HOUR,
@@ -23,12 +24,16 @@ class PostFilter(filters.FilterSet):
                 microsecond=FC.START_DAY_MICROSECOND
             )
             return queryset.filter(created_at__gte=start_of_day)
+
         elif value == 'week':
             return FilterUtils.post_queryset(queryset, now, FC.DAYS_IN_WEEK)
+
         elif value == 'month':
             return FilterUtils.post_queryset(queryset, now, FC.DAYS_IN_MONTH)
+
         elif value == 'year':
             return FilterUtils.post_queryset(queryset, now, FC.DAYS_IN_YEAR)
+
         return queryset
 
     class Meta:
