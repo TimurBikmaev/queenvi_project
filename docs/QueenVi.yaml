@@ -62,7 +62,6 @@ paths:
       - Посты
       security:
       - cookieAuth: []
-      - basicAuth: []
       - {}
       responses:
         '200':
@@ -93,7 +92,6 @@ paths:
         required: true
       security:
       - cookieAuth: []
-      - basicAuth: []
       responses:
         '200':
           content:
@@ -137,7 +135,6 @@ paths:
       - Комментарии
       security:
       - cookieAuth: []
-      - basicAuth: []
       - {}
       responses:
         '200':
@@ -180,7 +177,6 @@ paths:
         required: true
       security:
       - cookieAuth: []
-      - basicAuth: []
       responses:
         '200':
           content:
@@ -229,7 +225,6 @@ paths:
               $ref: '#/components/schemas/PatchedCommentRequest'
       security:
       - cookieAuth: []
-      - basicAuth: []
       responses:
         '200':
           content:
@@ -266,7 +261,6 @@ paths:
       - Комментарии
       security:
       - cookieAuth: []
-      - basicAuth: []
       responses:
         '204':
           description: No response body
@@ -293,7 +287,6 @@ paths:
       - Посты
       security:
       - cookieAuth: []
-      - basicAuth: []
       - {}
       responses:
         '200':
@@ -330,7 +323,6 @@ paths:
               $ref: '#/components/schemas/PatchedPostRequest'
       security:
       - cookieAuth: []
-      - basicAuth: []
       responses:
         '200':
           content:
@@ -362,7 +354,6 @@ paths:
       - Посты
       security:
       - cookieAuth: []
-      - basicAuth: []
       responses:
         '204':
           description: No response body
@@ -384,7 +375,6 @@ paths:
       - Лайки
       security:
       - cookieAuth: []
-      - basicAuth: []
       responses:
         '200':
           content:
@@ -412,7 +402,6 @@ paths:
       - Лайки
       security:
       - cookieAuth: []
-      - basicAuth: []
       responses:
         '200':
           content:
@@ -447,7 +436,6 @@ paths:
         required: true
       security:
       - cookieAuth: []
-      - basicAuth: []
       responses:
         '200':
           description: Жалоба на пост {public_id} отправлена! Модерация ее проверит
@@ -482,7 +470,6 @@ paths:
       - Профиль
       security:
       - cookieAuth: []
-      - basicAuth: []
       responses:
         '200':
           content:
@@ -524,7 +511,6 @@ paths:
               $ref: '#/components/schemas/PatchedModerationProfileRequest'
       security:
       - cookieAuth: []
-      - basicAuth: []
       responses:
         '200':
           content:
@@ -557,7 +543,6 @@ paths:
               $ref: '#/components/schemas/PatchedAvatarProfileRequest'
       security:
       - cookieAuth: []
-      - basicAuth: []
       responses:
         '200':
           content:
@@ -580,7 +565,6 @@ paths:
       - Профиль
       security:
       - cookieAuth: []
-      - basicAuth: []
       responses:
         '200':
           content:
@@ -602,7 +586,6 @@ paths:
       - Аутентификация
       security:
       - cookieAuth: []
-      - basicAuth: []
       responses:
         '200':
           description: No response body
@@ -612,18 +595,20 @@ paths:
   /api/v1/profile/twitch_login/:
     get:
       operationId: profile_twitch_login_retrieve
-      description: 'Необходимо открыть URL в адресной строке браузера. Эндпоинт перенаправит
-        пользователя на страницу авторизации Twitch. После успешной авторизации будет
-        создана пользовательская сессия. Для выполнения авторизованных запросов через
-        Postman необходимо получить значения cookies "sessionid" и "csrftoken" в DevTools
-        и передавать их в заголовках запросов: "Cookie: sessionid=<...>; csrftoken=<...>"
-        и для запросов, изменяющих данные: "X-CSRFToken: <...>".'
+      description: Необходимо открыть URL эндпоинта в адресной строке браузера. Эндпоинт
+        перенаправит пользователя на страницу авторизации Twitch. После успешной авторизации
+        будет создана пользовательская сессия. Для выполнения авторизованных запросов
+        в Swagger необходимо получить значения cookies "sessionid" и "csrftoken".
+        Для этого после завершения Twitch авторизации откройте DevTools (F12), перейдите
+        во вкладку "Application" и слева выберете "Cookies". Значение "sessionid"
+        передайте в форме "Authorize" у Swagger в поле "cookieAuth (apiKey)", а "csrftoken"
+        в "csrfAuth (apiKey)". В обоих полях нажмите "Authorize". Теперь вы можете
+        отправлять авторизованные запросы.
       summary: Аутентификация через Twitch OAuth
       tags:
       - Аутентификация
       security:
       - cookieAuth: []
-      - basicAuth: []
       responses:
         '200':
           content:
@@ -659,7 +644,6 @@ paths:
       - Жалобы
       security:
       - cookieAuth: []
-      - basicAuth: []
       responses:
         '200':
           content:
@@ -698,7 +682,6 @@ paths:
               $ref: '#/components/schemas/PatchedModerationReportRequest'
       security:
       - cookieAuth: []
-      - basicAuth: []
       responses:
         '200':
           content:
@@ -722,7 +705,6 @@ paths:
       - Поиск
       security:
       - cookieAuth: []
-      - basicAuth: []
       - {}
       responses:
         '200':
@@ -782,7 +764,6 @@ paths:
       - Предложка видео
       security:
       - cookieAuth: []
-      - basicAuth: []
       - {}
       responses:
         '200':
@@ -817,7 +798,6 @@ paths:
         required: true
       security:
       - cookieAuth: []
-      - basicAuth: []
       responses:
         '200':
           content:
@@ -861,7 +841,6 @@ paths:
               $ref: '#/components/schemas/PatchedVideoRequest'
       security:
       - cookieAuth: []
-      - basicAuth: []
       responses:
         '200':
           content:
@@ -895,7 +874,6 @@ paths:
       - Голоса
       security:
       - cookieAuth: []
-      - basicAuth: []
       responses:
         '200':
           content:
@@ -923,7 +901,6 @@ paths:
       - Голоса
       security:
       - cookieAuth: []
-      - basicAuth: []
       responses:
         '200':
           content:
@@ -1562,13 +1539,14 @@ components:
       - category
       - youtube_url
   securitySchemes:
-    basicAuth:
-      type: http
-      scheme: basic
     cookieAuth:
       type: apiKey
       in: cookie
       name: sessionid
+    csrfAuth:
+      type: apiKey
+      in: header
+      name: X-CSRFToken
 tags:
 - name: Аутентификация
   description: Аутентификация пользователя

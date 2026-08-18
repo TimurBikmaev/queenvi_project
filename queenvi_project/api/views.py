@@ -164,14 +164,17 @@ class UserViewSet(
         tags=['Аутентификация'],
         summary='Аутентификация через Twitch OAuth',
         description=(
-            'Необходимо открыть URL в адресной строке браузера. '
+            'Необходимо открыть URL эндпоинта в адресной строке браузера. '
             'Эндпоинт перенаправит пользователя на страницу авторизации '
             'Twitch. После успешной авторизации будет создана '
             'пользовательская сессия. Для выполнения авторизованных запросов '
-            'через Postman необходимо получить значения cookies "sessionid" и '
-            '"csrftoken" в DevTools и передавать их в заголовках запросов: '
-            '"Cookie: sessionid=<...>; csrftoken=<...>" и для '
-            'запросов, изменяющих данные: "X-CSRFToken: <...>".'
+            'в Swagger необходимо получить значения cookies "sessionid" и '
+            '"csrftoken". Для этого после завершения Twitch авторизации '
+            'откройте DevTools (F12), перейдите во вкладку "Application" и '
+            'слева выберете "Cookies". Значение "sessionid" передайте в форме '
+            '"Authorize" у Swagger в поле "cookieAuth (apiKey)", а '
+            '"csrftoken" в "csrfAuth (apiKey)". В обоих полях нажмите '
+            '"Authorize". Теперь вы можете отправлять авторизованные запросы.'
         ),
         responses={
             HTTPStatus.OK: serializers.ProfileSerializer,
