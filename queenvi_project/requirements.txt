@@ -4,6 +4,7 @@ djangorestframework==3.15
 drf-spectacular
 ipython
 pillow
+psycopg[binary]
 pytest
 pytest-django
 python-dotenv
