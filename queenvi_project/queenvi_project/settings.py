@@ -141,6 +141,9 @@ MEDIA_ROOT = BASE_DIR / 'media'
 
 
 REST_FRAMEWORK = {
+    'DEFAULT_AUTHENTICATION_CLASSES': [
+        'rest_framework.authentication.SessionAuthentication',
+    ],
     'DEFAULT_FILTER_BACKENDS': [
         'django_filters.rest_framework.DjangoFilterBackend',
         'rest_framework.filters.OrderingFilter',
@@ -175,6 +178,15 @@ SPECTACULAR_SETTINGS = {
         {'name': 'Поиск', 'description': 'Поиск пользователей и постов'},
     ],
     'COMPONENT_SPLIT_REQUEST': True,
+    'APPEND_COMPONENTS': {
+        'securitySchemes': {
+            'csrfAuth': {
+                'type': 'apiKey',
+                'in': 'header',
+                'name': 'X-CSRFToken',
+            },
+        },
+    },
     'VERSION': '1.0.0',
     'SERVE_INCLUDE_SCHEMA': False,
 }
