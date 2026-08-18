@@ -46,3 +46,8 @@ def new_user(db):
         role=UserRole.USER,
         twitch_avatar='new_user'
     )
+
+
+@pytest.fixture(autouse=True)
+def media_root(settings, tmp_path):
+    settings.MEDIA_ROOT = tmp_path

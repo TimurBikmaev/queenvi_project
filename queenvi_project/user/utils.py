@@ -1,10 +1,9 @@
 from pathlib import Path
 
-from django.utils.text import slugify
+from core.utils import generate_public_id
 
 
 def avatar_upload_to(instance, filename):
-    """Преобразование названия аватарки под юзернейм пользователя."""
+    """Преобразование названия аватарки под генерацию uuid."""
     ext = Path(filename).suffix
-    username = slugify(instance.username)
-    return f'avatars/{username}{ext}'
+    return f'avatars/{generate_public_id()}{ext}'
