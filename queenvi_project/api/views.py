@@ -94,14 +94,15 @@ class UserViewSet(
     mixins.UpdateModelMixin,
     GenericViewSet
 ):
-    queryset = User.objects.all()
     lookup_field = 'username'
 
     def get_permissions(self):
         if self.action == 'partial_update':
             return [NotBannedAllowAny(), IsModerOrStreamer()]
+
         elif self.action in ('avatar', 'logout'):
             return [perm.IsAuthenticated(), NotBannedAllowAny()]
+
         return [NotBannedAllowAny()]
 
     def get_serializer_class(self):
@@ -190,6 +191,7 @@ class UserViewSet(
             user = TwitchLoginService.authenticate(request)
         except AuthValidationError as e:
             raise ValidationError(e.msg)
+
         return redirect('profile-detail', username=user.username)
 
     @swg.extend_schema(
@@ -253,6 +255,7 @@ class UserViewSet(
     )
     def avatar(self, request):
         user = self.get_queryset().get(pk=request.user.pk)
+
         if request.method == 'DELETE':
             if not user.custom_avatar:
                 logger.warning(
@@ -264,14 +267,17 @@ class UserViewSet(
                     {'detail': 'Аватар не установлен'},
                     status=HTTPStatus.BAD_REQUEST
                 )
+
             user.custom_avatar.delete(save=False)
             user.custom_avatar = None
             user.save()
+
             logger.info(
                 'Юзер %s (%s) удалил авку',
                 user.username,
                 user.role
             )
+
             serializer = self.get_serializer(user)
             return Response(serializer.data, HTTPStatus.OK)
 
@@ -281,14 +287,18 @@ class UserViewSet(
             partial=True
         )
         serializer.is_valid(raise_exception=True)
+
         if 'custom_avatar' in serializer.validated_data and user.custom_avatar:
             user.custom_avatar.delete(save=False)
+
         serializer.save()
+
         logger.info(
             'Юзер %s (%s) изменил свою авку',
             user.username,
             user.role
         )
+
         serializer = self.get_serializer(user)
         return Response(serializer.data, HTTPStatus.OK)
 
@@ -421,8 +431,6 @@ class UserViewSet(
     ),
 )
 class PostViewSet(HttpLookupMixin, ModelViewSet):
-    queryset = Post.objects.all()
-
     filter_backends = [DjangoFilterBackend, OrderingFilter]
     filterset_class = PostFilter
 
@@ -433,6 +441,7 @@ class PostViewSet(HttpLookupMixin, ModelViewSet):
 
     def get_permissions(self):
         user = self.request.user
+
         if user.is_authenticated and not user.is_user:
             if self.action == 'partial_update':
                 return [
@@ -440,17 +449,21 @@ class PostViewSet(HttpLookupMixin, ModelViewSet):
                     IsModerOrStreamer(),
                     NotBannedAllowAny(),
                 ]
+
         if self.action in ('like', 'report'):
             return [perm.IsAuthenticated(), NotBannedAllowAny()]
+
         return [
             NotBannedAllowAny(), perm.IsAuthenticatedOrReadOnly(), IsOwner()
         ]
 
     def get_serializer_class(self):
         user = self.request.user
+
         if user.is_authenticated and not user.is_user:
             if self.action == 'list':
                 return serializers.ModerationShortPostSerializer
+
             elif self.action in ('retrieve', 'partial_update'):
                 post = self.get_object()
                 if post.user != user:
@@ -458,8 +471,10 @@ class PostViewSet(HttpLookupMixin, ModelViewSet):
 
         if self.action == 'list':
             return serializers.ShortPostSerializer
+
         elif self.action == 'report':
             return serializers.CreateReportSerializer
+
         return serializers.PostSerializer
 
     def get_queryset(self):
@@ -513,16 +528,21 @@ class PostViewSet(HttpLookupMixin, ModelViewSet):
 
     def destroy(self, request, *args, **kwargs):
         user = request.user
+
         post = self.get_object()
         old_public_id = post.public_id
+
         MediaUtils.del_media_catalog(post.public_id)
+
         self.perform_destroy(post)
+
         logger.info(
             'Юзер %s (%s) удалил пост %s',
             user.username,
             user.role,
             old_public_id
         )
+
         return Response(status=HTTPStatus.NO_CONTENT)
 
     @swg.extend_schema(tags=['Лайки'])
@@ -559,11 +579,14 @@ class PostViewSet(HttpLookupMixin, ModelViewSet):
     @action(detail=True, methods=['post', 'delete'])
     def like(self, request, public_id=None):
         post = self.get_object()
+
         if request.method == 'POST':
             Like.objects.get_or_create(post=post, user=request.user)
         else:
             Like.objects.filter(post=post, user=request.user).delete()
+
         post = self.get_queryset().get(public_id=public_id)
+
         serializer = self.get_serializer(post)
         return Response(serializer.data, HTTPStatus.OK)
 
@@ -599,13 +622,16 @@ class PostViewSet(HttpLookupMixin, ModelViewSet):
     )
     def report(self, request, public_id=None):
         post = self.get_object()
+
         try:
             ReportValidator.check_report(request.user, post)
         except UserCanReportError as e:
             raise ValidationError(str(e))
+
         serializer = self.get_serializer(data=request.data)
         serializer.is_valid(raise_exception=True)
         serializer.save(post=post, user=request.user)
+
         return Response(serializer.data, HTTPStatus.CREATED)
 
 
@@ -705,7 +731,6 @@ class CommentViewSet(
     mixins.DestroyModelMixin,
     GenericViewSet
 ):
-    queryset = Comment.objects.all()
     serializer_class = serializers.CommentSerializer
     lookup_value_regex = PublicIdConstants.URL_REGEX
     filter_backends: list = []
@@ -739,11 +764,14 @@ class CommentViewSet(
 
     def perform_create(self, serializer):
         post = get_object_or_404(Post, public_id=self.kwargs['post_id'])
+
         serializer.save(user=self.request.user, post=post)
 
     def create(self, request, *args, **kwargs):
         user = request.user
+
         post = get_object_or_404(Post, public_id=self.kwargs['post_id'])
+
         if post.is_banned:
             logger.info(
                 'Юзер %s (%s) попытался прокомментить '
@@ -754,7 +782,9 @@ class CommentViewSet(
                 post.is_banned
             )
             raise ValidationError('Нельзя комментировать забаненный пост')
+
         comment = super().create(request, *args, **kwargs)
+
         logger.info(
             'Юзер %s (%s) создал коммент %s на пост %s',
             user.username,
@@ -762,11 +792,14 @@ class CommentViewSet(
             comment.data['public_id'],
             post.public_id,
         )
+
         return comment
 
     def list(self, request, *args, **kwargs):
         user = self.request.user
+
         post = get_object_or_404(Post, public_id=self.kwargs['post_id'])
+
         if (not user.is_authenticated or user.is_user) and post.is_banned:
             logger.warning(
                 'Юзер %s (%s) попытался посмотреть '
@@ -777,6 +810,7 @@ class CommentViewSet(
                 post.is_banned
             )
             raise NotFound('Упс... Пост не найден :(')
+
         return super().list(request, *args, **kwargs)
 
 
@@ -826,7 +860,6 @@ class ReportViewSet(
     ListUpdateMixin,
     GenericViewSet
 ):
-    queryset = Report.objects.all()
     serializer_class = serializers.ModerationReportSerializer
 
     http_method_names = ['get', 'patch']
@@ -936,9 +969,9 @@ class VideoViewSet(
     mixins.CreateModelMixin,
     GenericViewSet
 ):
-    queryset = Video.objects.all()
     filter_backends = [DjangoFilterBackend, OrderingFilter]
     filterset_fields = ['category']
+
     ordering_fields = ['created_at']
     ordering = ['-votings_count', '-created_at']
 
@@ -959,6 +992,7 @@ class VideoViewSet(
 
     def get_permissions(self):
         user = self.request.user
+
         if user.is_authenticated and not user.is_user:
             if self.action == 'partial_update':
                 return [
@@ -966,6 +1000,7 @@ class VideoViewSet(
                     IsModerOrStreamer(),
                     NotBannedAllowAny(),
                 ]
+
         if self.action == 'voting':
             return [perm.IsAuthenticated(), NotBannedAllowAny()]
 
@@ -977,15 +1012,18 @@ class VideoViewSet(
 
     def get_queryset(self):
         user = self.request.user
+
         queryset = get_queryset_by_filter_is_banned(
             user, self.request, Video, self.action
         )
+
         is_voted = Value(False)
         if user.is_authenticated:
             is_voted = Exists(Voting.objects.filter(
                 video=OuterRef('pk'),
                 user=self.request.user
             ))
+
         return queryset.annotate(
             is_voted=is_voted,
             votings_count=Count('votes')
@@ -1067,7 +1105,9 @@ class VideoViewSet(
 class SearchView(APIView):
     def get(self, request):
         user = request.user
+
         param_search = request.query_params.get('find', '')
+
         if user.is_authenticated and user.is_banned:
             logger.warning(
                 'Забаненный юзер %s (%s), is_banned = %s '
@@ -1078,17 +1118,23 @@ class SearchView(APIView):
                 param_search
             )
             raise ValidationError('Забаненным доступ запрещен o_o')
+
         posts = Post.objects.filter(
             name__icontains=param_search
-        ).prefetch_related(Prefetch(
-            'media',
-            queryset=Media.objects.filter(order=MC.PREVIEW_ORDER),
-            to_attr='preview_media'
-        ))
+        ).prefetch_related(
+            Prefetch(
+                'media',
+                queryset=Media.objects.filter(order=MC.PREVIEW_ORDER),
+                to_attr='preview_media'
+            )
+        )
+
         users = User.objects.filter(username__icontains=param_search.lower())
+
         if not user.is_authenticated or user.is_user:
             posts = posts.filter(is_banned=False)
             users = users.filter(is_banned=False)
+
         return Response(
             serializers.SearchSerializer(
                 {'posts': posts, 'users': users}

@@ -24,6 +24,7 @@ class VideoSerivce:
         video_id = VideoSerivce.parse_video_id(user, url)
         VideoSerivce.get_existed_video(user, video_id)
         data = VideoSerivce.get_video_data(user, video_id)
+
         return VideoSerivce.create_video(
             data, user, video_id, category, comment
         )
@@ -32,8 +33,10 @@ class VideoSerivce:
     def parse_video_id(user, url: str) -> str:
         if url.startswith(VSC.URL_VIDEO_YOUTUBE_1):
             video_id = url[len(VSC.URL_VIDEO_YOUTUBE_1):]
+
         elif url.startswith(VSC.URL_VIDEO_YOUTUBE_2):
             video_id = url[len(VSC.URL_VIDEO_YOUTUBE_2):]
+
         else:
             logger.warning(
                 'Юзер %s (%s) попытался загрузить видео '
@@ -43,7 +46,9 @@ class VideoSerivce:
                 url
             )
             raise VideoIdIncorrectError()
+
         video_id = video_id[:VideoConstants.VIDEO_ID_MAX_LENGTH]
+
         if len(video_id) != VideoConstants.VIDEO_ID_MAX_LENGTH:
             logger.warning(
                 'Юзер %s (%s) попытался загрузить видео с некорректной '
@@ -61,6 +66,7 @@ class VideoSerivce:
     def get_existed_video(user, video_id):
         """Проверка, что видео уже предлагали."""
         video = Video.objects.filter(youtube_id=video_id).first()
+
         if video is not None:
             logger.warning(
                 'Юзер %s (%s) попытался загрузить '
@@ -127,12 +133,14 @@ class VideoSerivce:
             category=category,
             comment=comment
         )
+
         logger.info(
             'Юзер %s (%s) создал видео %s',
             user.username,
             user.role,
             video.public_id
         )
+
         return video
 
     @staticmethod
@@ -143,6 +151,7 @@ class VideoSerivce:
             if preview is not None:
                 preview = preview.get('url')
                 break
+
         return preview
 
     @staticmethod
@@ -153,6 +162,7 @@ class VideoSerivce:
             int(value or VSC.NO_TIME)
             for value in match.groups()
         )
+
         return (
             hours * VSC.SEC_FROM_HOURS + minutes * VSC.SEC_FROM_MINUTS
             + seconds

@@ -1330,10 +1330,33 @@ components:
         posts:
           type: array
           items:
-            $ref: '#/components/schemas/ShortPost'
+            $ref: '#/components/schemas/SearchPost'
       required:
       - posts
       - users
+    SearchPost:
+      type: object
+      description: Краткая информация о посте в поиске.
+      properties:
+        public_id:
+          type: string
+          readOnly: true
+        name:
+          type: string
+          description: Возвращает лишь первые несколько символов для название.
+          readOnly: true
+        preview:
+          allOf:
+          - $ref: '#/components/schemas/PreviewMedia'
+          readOnly: true
+        user:
+          type: string
+          readOnly: true
+      required:
+      - name
+      - preview
+      - public_id
+      - user
     ShortPost:
       type: object
       description: Краткая информация о посте.
