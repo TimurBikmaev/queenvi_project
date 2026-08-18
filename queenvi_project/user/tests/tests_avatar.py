@@ -1,10 +1,11 @@
+from pathlib import Path
 from http import HTTPStatus
 
 from django.urls import reverse
 import pytest
 
 from core.constants import TestConstants
-from user.constants import UserConstants as UC
+from user.constants import UserConstants as UC, UserRole
 from user.tests.constants import TestMediaConstants as TMC
 
 
@@ -52,6 +53,34 @@ def test_user_avatar_patch_correct(api_client, users, role, image_factory):
         assert avatar.read() == image.read(), (
             'Переданная кастомная авка не присвоена юзеру'
         )
+
+
+def test_user_avatar_patch_deletes_old_custom_avatar(
+    auth,
+    users,
+    image_factory,
+):
+    user = users[UserRole.USER]
+
+    old_image = image_factory()
+
+    user.custom_avatar.save(f'{user.username}.jpg', old_image)
+    old_avatar_path = Path(user.custom_avatar.path)
+    assert old_avatar_path.exists(), (
+        'Авка не сохраняется на диске при обновлении'
+    )
+
+    new_image = image_factory()
+
+    auth.patch(
+        reverse('profile-avatar'),
+        {'custom_avatar': new_image},
+        format='multipart',
+    )
+
+    assert not old_avatar_path.exists(), (
+        'Старая кастомная аватарка не была удалена'
+    )
 
 
 @pytest.mark.parametrize(
