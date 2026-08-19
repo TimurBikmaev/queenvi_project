@@ -10,12 +10,12 @@ BASE_DIR = Path(__file__).resolve().parent.parent
 load_dotenv(BASE_DIR / '.env')
 
 SECRET_KEY = os.environ['DJANGO_SECRET_KEY']
-DEBUG = os.getenv('DEBUG', 'False').lower() in ('true', '1', 't')
-ALLOWED_HOSTS = os.getenv('ALLOWED_HOSTS', '').split(',')
+DEBUG = os.environ['DEBUG'].lower() in ('true', '1', 't')
+ALLOWED_HOSTS = os.environ['ALLOWED_HOSTS'].split(',')
 
-GOOGLE_API_KEY = os.environ['GOOGLE_API_KEY']
-TWITCH_CLIENT_ID = os.environ['TWITCH_CLIENT_ID']
-TWITCH_CLIENT_SECRET = os.environ['TWITCH_CLIENT_SECRET']
+GOOGLE_API_KEY = os.getenv('GOOGLE_API_KEY')
+TWITCH_CLIENT_ID = os.getenv('TWITCH_CLIENT_ID')
+TWITCH_CLIENT_SECRET = os.getenv('TWITCH_CLIENT_SECRET')
 TWITCH_REDIRECT_URI = os.environ['TWITCH_REDIRECT_URI']
 
 LOG_DIR = BASE_DIR / 'logs'

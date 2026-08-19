@@ -26,21 +26,41 @@ jobs:
       - name: Run tests
         run: pytest
 
-
-  deploy:
-    name: Deploy to VPS
+  build:
+    name: Build and Push Docker image
     needs: test
     runs-on: ubuntu-latest
 
     steps:
-      - name: Deploy
-        uses: appleboy/ssh-action@v1
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Log in to Docker Hub
+        uses: docker/login-action@v3
         with:
-          host: ${{ secrets.VPS_HOST }}
-          username: ${{ secrets.VPS_USER }}
-          key: ${{ secrets.VPS_SSH_KEY }}
-          script: |
-            cd /path/to/queenvi
-            docker compose pull
-            docker compose up -d
-            docker image prune -f
+          username: ${{ secrets.DOCKERHUB_USERNAME }}
+          password: ${{ secrets.DOCKERHUB_TOKEN }}
+
+      - name: Build backend image
+        run: docker build -t ${{ secrets.DOCKERHUB_USERNAME }}/queenvi-backend:latest .
+
+      - name: Push backend image
+        run: docker push ${{ secrets.DOCKERHUB_USERNAME }}/queenvi-backend:latest
+
+  # deploy:
+  #   name: Deploy to server
+  #   needs: build
+  #   runs-on: ubuntu-latest
+
+  #   steps:
+  #     - name: Deploy
+  #       uses: appleboy/ssh-action@v1
+  #       with:
+  #         host: ${{ secrets.VPS_HOST }}
+  #         username: ${{ secrets.VPS_USER }}
+  #         key: ${{ secrets.VPS_SSH_KEY }}
+  #         script: |
+  #           cd /path/to/queenvi
+  #           docker compose pull
+  #           docker compose up -d
+  #           docker image prune -f
