@@ -47,20 +47,20 @@ jobs:
       - name: Push backend image
         run: docker push ${{ secrets.DOCKERHUB_USERNAME }}/queenvi-backend:latest
 
-  # deploy:
-  #   name: Deploy to server
-  #   needs: build
-  #   runs-on: ubuntu-latest
+  deploy:
+    name: Deploy to server
+    needs: build
+    runs-on: ubuntu-latest
 
-  #   steps:
-  #     - name: Deploy
-  #       uses: appleboy/ssh-action@v1
-  #       with:
-  #         host: ${{ secrets.VPS_HOST }}
-  #         username: ${{ secrets.VPS_USER }}
-  #         key: ${{ secrets.VPS_SSH_KEY }}
-  #         script: |
-  #           cd /path/to/queenvi
-  #           docker compose pull
-  #           docker compose up -d
-  #           docker image prune -f
+    steps:
+      - name: Deploy
+        uses: appleboy/ssh-action@v1
+        with:
+          host: ${{ secrets.VPS_HOST }}
+          username: ${{ secrets.VPS_USER }}
+          key: ${{ secrets.VPS_SSH_KEY }}
+          script: |
+            cd /path/to/queenvi
+            docker compose pull
+            docker compose up -d
+            docker image prune -f
