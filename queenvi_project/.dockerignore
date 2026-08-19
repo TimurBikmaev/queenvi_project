@@ -168,11 +168,8 @@ __marimo__/
 # Logs
 logs/
 
+# Migrations
+migrations/
+
 # Media
 media/
-
-# Project requirements
-project_guide/
-notes.txt
-exp.py
-exp_2.py
