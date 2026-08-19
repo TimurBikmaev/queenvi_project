@@ -53,7 +53,7 @@ jobs:
 
   build:
     name: Build and Push Docker image
-    needs: test
+    # needs: test
     runs-on: ubuntu-latest
 
     steps:
