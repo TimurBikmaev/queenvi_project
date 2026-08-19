@@ -1,0 +1,96 @@
+from pathlib import Path
+from http import HTTPStatus
+
+from django.contrib.auth import get_user_model
+from django.urls import reverse
+import pytest
+
+from core.constants import TestConstants
+from post.models import Post
+from user.constants import UserRole
+
+
+User = get_user_model()
+
+
+@pytest.mark.parametrize(
+    'role',
+    TestConstants.PARAMS_USERS,
+)
+def test_post_delete_correct(api_client, users, post_factory, role):
+    if role is None:
+        post = post_factory()
+        media = post.media.first()
+
+    else:
+        post = post_factory(users[role])
+        media = post.media.first()
+
+        api_client.force_authenticate(user=users[role])
+    response = api_client.delete(
+        reverse('posts-detail', args=[post.public_id]),
+    )
+
+    if role is None:
+        assert response.status_code == HTTPStatus.FORBIDDEN, (
+            'Аноним не может удалить пост'
+        )
+        return
+
+    assert response.status_code == HTTPStatus.NO_CONTENT
+
+    assert not Post.objects.filter(public_id=post.public_id).exists(), (
+        'Пост не удалился'
+    )
+
+    assert not Path(media.file.path).exists(), (
+        'Файл медиа не удалился из директории проекта.'
+    )
+
+    assert not Path(media.file.path).parent.exists(), (
+        'Каталог медиа поста не удалился из директории проекта.'
+    )
+
+
+@pytest.mark.parametrize(
+    'role',
+    TestConstants.PARAMS_AUTH_USERS,
+)
+def test_post_delete_only_author(api_client, users, post_factory, role):
+    new_user = User.objects.create(
+        username='new_user',
+        role=UserRole.USER,
+        twitch_id='new_user',
+    )
+    post = post_factory(user=new_user)
+
+    api_client.force_authenticate(user=users[role])
+    response = api_client.delete(
+        reverse('posts-detail', args=[post.public_id]),
+    )
+
+    assert response.status_code == HTTPStatus.FORBIDDEN
+
+    assert Post.objects.filter(public_id=post.public_id).exists(), (
+        'Только автор может удалить свой пост'
+    )
+
+
+@pytest.mark.parametrize(
+    'role',
+    TestConstants.PARAMS_BANNED_USERS,
+)
+def test_post_delete_by_banned(api_client, users, post_factory, role):
+    users[role].is_banned = True
+    users[role].save(update_fields=['is_banned'])
+
+    post = post_factory(user=users[role])
+
+    api_client.force_authenticate(user=users[role])
+    response = api_client.delete(
+        reverse('posts-detail', args=[post.public_id]),
+    )
+
+    assert response.status_code == HTTPStatus.FORBIDDEN, (
+        'Забаненный юзер не может удалить пост'
+    )
