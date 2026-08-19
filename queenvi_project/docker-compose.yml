@@ -1,6 +1,7 @@
 services:
   db:
     image: postgres:17
+    restart: unless-stopped
     environment:
       POSTGRES_DB: ${POSTGRES_DB}
       POSTGRES_USER: ${POSTGRES_USER}
@@ -14,7 +15,7 @@ services:
       - postgres_data:/var/lib/postgresql/data
     
   backend:
-    build: .
+    image: never52/queenvi_backend:latest
     restart: unless-stopped
     env_file:
       - .env
@@ -33,6 +34,7 @@ services:
 
   nginx:
     image: nginx:1.30-alpine
+    restart: unless-stopped
     ports:
       - '80:80'
     volumes:
