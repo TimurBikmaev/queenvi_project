@@ -3,11 +3,11 @@ from django.db.models import TextChoices
 
 class PostConstants:
     DESCRIPTION_MAX_LENGTH = 1000
-    DESCRIPTION_PROFILE_MAX_LENGTH = 10
+    DESCRIPTION_PROFILE_MAX_LENGTH = 40
     MEDIA_MAX_COUNT = 10
     MEDIA_MIN_COUNT = 1
     NAME_MAX_LENGTH = 100
-    NAME_PROFILE_MAX_LENGTH = 10
+    NAME_PROFILE_MAX_LENGTH = 40
     NO_COMMENTS = 0
     NO_LIKES = 0
     ONE_POST = 1
@@ -60,7 +60,7 @@ class MediaType(TextChoices):
 
 class MediaConstants:
     FORMAT_AUDIO = ['.mp3']
-    FORMAT_PHOTO = ['.jpg', '.jpeg', '.jfif', '.png']
+    FORMAT_PHOTO = ['.jpg', '.jpeg', '.png']
     FORMAT_VIDEO = ['.mp4']
     PREVIEW_ORDER = 0
     TYPE_MAX_LENGTH = 20
