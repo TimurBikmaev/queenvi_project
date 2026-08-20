@@ -168,8 +168,5 @@ __marimo__/
 # Logs
 logs/
 
-# Migrations
-migrations/
-
 # Media
 media/
