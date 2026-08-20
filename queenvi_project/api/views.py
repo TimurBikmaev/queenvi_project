@@ -754,17 +754,19 @@ class CommentViewSet(
         return [NotBannedAllowAny(), perm.IsAuthenticatedOrReadOnly()]
 
     def get_queryset(self):
+        post = get_object_or_404(Post, public_id=self.kwargs['post_id'])
+
         user = self.request.user
 
         if user.is_authenticated and not user.is_user:
             is_banned = self.request.query_params.get('is_banned', '')
 
             if is_banned.lower() == 'true':
-                return Comment.objects.filter(user__is_banned=True)
+                return Comment.objects.filter(post=post, user__is_banned=True)
             elif is_banned.lower() == 'all':
-                return Comment.objects.filter()
+                return Comment.objects.filter(post=post)
 
-        return Comment.objects.filter(user__is_banned=False)
+        return Comment.objects.filter(post=post, user__is_banned=False)
 
     def perform_create(self, serializer):
         post = get_object_or_404(Post, public_id=self.kwargs['post_id'])

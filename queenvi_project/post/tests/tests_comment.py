@@ -37,12 +37,17 @@ def test_comment_list_correct(
 
     assert response.status_code == HTTPStatus.OK
 
+    com_pub_id = response.data[TCC.FIRST_COMMENT_IDX]['public_id']
+    first_comment = Comment.objects.get(public_id=com_pub_id)
+
+    assert first_comment.post == post, 'Комменты присвоились не тому посту'
+
     assert len(response.data) == TCC.TWO_COMMENTS, (
         'В списке комментов не должны отображаться комменты забаненных юзеров'
     )
 
     assert (
-        response.data[TCC.FIRST_COMMENT_IDX]['created_at']
+        first_comment.created_at
         > response.data[TCC.SECOND_COMMENT_IDX]['created_at']
     ), 'Комменты должны отсортированы от новых к старым'
 
