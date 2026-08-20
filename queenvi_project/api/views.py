@@ -325,7 +325,7 @@ class UserViewSet(
                 description='Сортировка публикаций',
                 required=False,
                 type=str,
-                enum=['likes_count', 'comments_count'],
+                enum=['-likes_count', '-comments_count'],
             ),
             swg.OpenApiParameter(
                 name='is_banned',
