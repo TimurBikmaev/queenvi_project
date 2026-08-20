@@ -15,7 +15,7 @@ services:
       - postgres_data:/var/lib/postgresql/data
     
   backend:
-    image: never52/queenvi_backend:latest
+    image: never52/queenvi_backend:${IMAGE_TAG}
     restart: unless-stopped
     env_file:
       - .env
@@ -33,7 +33,7 @@ services:
         condition: service_healthy
 
   nginx:
-    image: never52/queenvi_nginx:latest
+    image: never52/queenvi_nginx:${IMAGE_TAG}
     restart: unless-stopped
     ports:
       - "80:80"
