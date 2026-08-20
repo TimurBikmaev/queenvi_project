@@ -17,15 +17,15 @@ from user.constants import UserRole
     TestConstants.PARAMS_USERS,
 )
 def test_comment_list_correct(
-    api_client, users, post_factory, comment_factory, new_user, role,
+    api_client, users, comment_factory, new_user, role,
 ):
-    post = post_factory()
 
     comment_factory()
 
     comment = comment_factory()
     comment.created_at = timezone.now() - timedelta(days=TCC.DELTA_TWO_DAYS)
     comment.save(update_fields=['created_at'])
+    post = comment.post
 
     comment_factory(user=new_user)
     new_user.is_banned = True
@@ -37,8 +37,8 @@ def test_comment_list_correct(
 
     assert response.status_code == HTTPStatus.OK
 
-    com_pub_id = response.data[TCC.FIRST_COMMENT_IDX]['public_id']
-    first_comment = Comment.objects.get(public_id=com_pub_id)
+    com_pub_id = response.data[TCC.FIRST_COMMENT_IDX]
+    first_comment = Comment.objects.get(public_id=com_pub_id['public_id'])
 
     assert first_comment.post == post, 'Комменты присвоились не тому посту'
 
@@ -47,7 +47,7 @@ def test_comment_list_correct(
     )
 
     assert (
-        first_comment.created_at
+        com_pub_id['public_id']
         > response.data[TCC.SECOND_COMMENT_IDX]['created_at']
     ), 'Комменты должны отсортированы от новых к старым'
 
@@ -69,11 +69,11 @@ def test_comment_list_correct(
     TestConstants.PARAMS_AUTH_USERS,
 )
 def test_comment_list_filter_is_banned(
-    api_client, users, post_factory, comment_factory, value, new_user, role
+    api_client, users, comment_factory, value, new_user, role
 ):
-    post = post_factory()
 
-    comment_factory()
+    comment = comment_factory()
+    post = comment.post
 
     comment_factory(user=new_user)
     new_user.is_banned = True
