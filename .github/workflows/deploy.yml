@@ -69,7 +69,8 @@ jobs:
       - name: Build backend image
         env:
           DOCKERHUB_USERNAME: ${{ secrets.DOCKERHUB_USERNAME }}
-        run: docker build -t "$DOCKERHUB_USERNAME/queenvi_backend:latest" ./queenvi_project
+        working-directory: ./queenvi_project
+        run: docker build -t "$DOCKERHUB_USERNAME/queenvi_backend:latest" .
 
       - name: Push backend image
         env:
