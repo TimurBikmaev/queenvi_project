@@ -9,14 +9,16 @@ from core.constants import LoggingConstants
 BASE_DIR = Path(__file__).resolve().parent.parent
 load_dotenv(BASE_DIR / '.env')
 
-ALLOWED_HOSTS = os.getenv('ALLOWED_HOSTS', '127.0.0.1,localhost').split(',')
+ALLOWED_HOSTS = os.getenv('ALLOWED_HOSTS', '').split(',')
 DEBUG = os.getenv('DEBUG', 'false').lower() in ('true', '1', 't')
-SECRET_KEY = os.getenv('DJANGO_SECRET_KEY', 'test')
+SECRET_KEY = os.getenv('DJANGO_SECRET_KEY')
 
 GOOGLE_API_KEY = os.getenv('GOOGLE_API_KEY')
 TWITCH_CLIENT_ID = os.getenv('TWITCH_CLIENT_ID')
 TWITCH_CLIENT_SECRET = os.getenv('TWITCH_CLIENT_SECRET')
 TWITCH_REDIRECT_URI = os.getenv('TWITCH_REDIRECT_URI')
+
+CSRF_TRUSTED_ORIGINS = os.getenv('CSRF_TRUSTED_ORIGINS', '').split(',')
 
 LOG_DIR = BASE_DIR / 'logs'
 LOG_DIR.mkdir(exist_ok=True)
@@ -143,7 +145,7 @@ MEDIA_URL = '/media/'
 MEDIA_ROOT = BASE_DIR / 'media'
 
 STATIC_URL = '/static/'
-STATIC_ROOT = BASE_DIR / "staticfiles"
+STATIC_ROOT = BASE_DIR / 'staticfiles'
 
 
 REST_FRAMEWORK = {
