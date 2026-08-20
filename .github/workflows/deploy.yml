@@ -75,6 +75,16 @@ jobs:
         env:
           DOCKERHUB_USERNAME: ${{ secrets.DOCKERHUB_USERNAME }}
         run: docker push "$DOCKERHUB_USERNAME/queenvi-backend:latest"
+      
+      - name: Build nginx image
+        env:
+          DOCKERHUB_USERNAME: ${{ secrets.DOCKERHUB_USERNAME }}
+        run: docker build -t "$DOCKERHUB_USERNAME/queenvi-nginx:latest" ./queenvi_project/nginx
+
+      - name: Push nginx image
+        env:
+          DOCKERHUB_USERNAME: ${{ secrets.DOCKERHUB_USERNAME }}
+        run: docker push "$DOCKERHUB_USERNAME/queenvi-nginx:latest"
 
   deploy:
     name: Deploy to server
