@@ -409,6 +409,7 @@ class UserViewSet(
             'Обновить публикацию. Для модератора и стримера '
             'доступно изменение статуса бана.'
         ),
+        request=serializers.PostSerializer,
         responses={
             HTTPStatus.OK: serializers.PostSerializer,
             HTTPStatus.BAD_REQUEST: swg.OpenApiResponse(
