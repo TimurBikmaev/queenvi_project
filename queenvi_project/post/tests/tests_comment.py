@@ -47,9 +47,9 @@ def test_comment_list_correct(
     )
 
     assert (
-        com_pub_id['public_id']
-        > response.data[TCC.SECOND_COMMENT_IDX]['created_at']
-    ), 'Комменты должны отсортированы от новых к старым'
+        com_pub_id['created_at']
+        < response.data[TCC.SECOND_COMMENT_IDX]['created_at']
+    ), 'Комменты должны быть отсортированы от старых к новым'
 
     comment_fields = ['public_id', 'text', 'user', 'created_at', 'updated_at']
     assert (

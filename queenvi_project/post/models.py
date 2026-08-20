@@ -102,7 +102,7 @@ class Comment(PublicIdMixin, CreatedAtMixin, UpdatedMixin):
     class Meta:
         verbose_name = 'Комментарий'
         verbose_name_plural = 'Комментарии'
-        ordering = ['-created_at']
+        ordering = ['created_at']
         indexes = [
             models.Index(fields=['post']),
             models.Index(fields=['created_at']),
