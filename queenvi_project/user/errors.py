@@ -1,6 +1,3 @@
-from user.constants import UserConstants as UC
-
-
 class AuthValidationError(Exception):
     msg = 'Не удалось выполнить вход через твич:('
 
