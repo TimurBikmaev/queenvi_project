@@ -515,7 +515,7 @@ class PostViewSet(HttpLookupMixin, ModelViewSet):
                 to_attr='preview_media'
             ))
 
-        elif self.action in ('retrieve', 'partial_update'):
+        else:
             queryset = queryset.prefetch_related(
                 Prefetch(
                     'media',
