@@ -52,7 +52,7 @@ jobs:
         run: pytest
 
   build:
-    name: Build and Push Docker image
+    name: Build and Push Docker images
     needs: test
     runs-on: ubuntu-latest
 
