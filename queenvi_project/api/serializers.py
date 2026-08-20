@@ -272,10 +272,11 @@ class PostSerializer(ShortPostSerializer):
             instance.media.all().delete()
             MediaUtils.del_media_catalog(instance.public_id)
 
-            Media.objects.bulk_create(
+            media = Media.objects.bulk_create(
                 Media(post=instance, **data)
                 for data in media_data
             )
+            instance.list_media = media
 
         post = super().update(instance, validated_data)
 
