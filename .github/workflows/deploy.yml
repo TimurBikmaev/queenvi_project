@@ -1,9 +1,9 @@
 name: Test, Build and Deploy
 
-on:
-  push:
-    branches:
-      - main
+# on:
+#   push:
+#     branches:
+#       - main
 
 jobs:
 
@@ -66,40 +66,27 @@ jobs:
           username: ${{ secrets.DOCKERHUB_USERNAME }}
           password: ${{ secrets.DOCKERHUB_TOKEN }}
 
-      # - name: Build backend image
-      #   env:
-      #     DOCKERHUB_USERNAME: ${{ secrets.DOCKERHUB_USERNAME }}
-      #   working-directory: ./queenvi_project
-      #   run: docker build -t "$DOCKERHUB_USERNAME/queenvi_backend:latest" .
       - name: Build backend image
         env:
           DOCKERHUB_USERNAME: ${{ secrets.DOCKERHUB_USERNAME }}
         working-directory: ./queenvi_project
-        run: |
-          echo "=== settings.py BEFORE BUILD ==="
-          grep -n "SECRET_KEY\|DEBUG\|ALLOWED_HOSTS\|CSRF_TRUSTED" queenvi_project/settings.py || true
-
-          echo "=== BUILD ==="
-          docker build --no-cache -t "$DOCKERHUB_USERNAME/queenvi_backend:latest" .
-
-          echo "=== SETTINGS INSIDE IMAGE ==="
-          docker run --rm "$DOCKERHUB_USERNAME/queenvi_backend:latest" \
-            sh -c 'grep -n "SECRET_KEY\|DEBUG\|ALLOWED_HOSTS\|CSRF_TRUSTED" queenvi_project/settings.py'
+        run: docker build -t "$DOCKERHUB_USERNAME/queenvi_backend:latest" .
 
       - name: Push backend image
         env:
           DOCKERHUB_USERNAME: ${{ secrets.DOCKERHUB_USERNAME }}
         run: docker push "$DOCKERHUB_USERNAME/queenvi_backend:latest"
       
-  #     - name: Build nginx image
-  #       env:
-  #         DOCKERHUB_USERNAME: ${{ secrets.DOCKERHUB_USERNAME }}
-  #       run: docker build -t "$DOCKERHUB_USERNAME/queenvi-nginx:latest" ./queenvi_project/nginx
+      - name: Build nginx image
+        env:
+          DOCKERHUB_USERNAME: ${{ secrets.DOCKERHUB_USERNAME }}
+        working-directory: ./queenvi_project/nginx
+        run: docker build -t "$DOCKERHUB_USERNAME/queenvi_nginx:latest" .
 
-  #     - name: Push nginx image
-  #       env:
-  #         DOCKERHUB_USERNAME: ${{ secrets.DOCKERHUB_USERNAME }}
-  #       run: docker push "$DOCKERHUB_USERNAME/queenvi-nginx:latest"
+      - name: Push nginx image
+        env:
+          DOCKERHUB_USERNAME: ${{ secrets.DOCKERHUB_USERNAME }}
+        run: docker push "$DOCKERHUB_USERNAME/queenvi_nginx:latest"
 
   # deploy:
   #   name: Deploy to server

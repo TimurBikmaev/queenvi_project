@@ -33,7 +33,7 @@ services:
         condition: service_healthy
 
   nginx:
-    image: never52/queenvi-nginx:latest
+    image: never52/queenvi_nginx:latest
     restart: unless-stopped
     ports:
       - "80:80"
