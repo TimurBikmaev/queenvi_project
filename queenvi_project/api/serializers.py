@@ -576,6 +576,14 @@ class VideoSerializer(mx.BaseSerializerMixin):
             'comments_count'
         ]
 
+    def get_fields(self):
+        fields = super().get_fields()
+
+        if self.context['request'].method != 'POST':
+            fields.pop('youtube_url')
+
+        return fields
+
     def create(self, validated_data):
         user = self.context['request'].user
 
