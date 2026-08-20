@@ -1098,6 +1098,14 @@ class VideoViewSet(
     description=(
         'Поиск осуществляется по "username" пользователя и "name" поста.'
     ),
+    parameters=[
+        swg.OpenApiParameter(
+            name='find',
+            description='Поиск постов и пользователей',
+            required=False,
+            type=str,
+        ),
+    ],
     responses={
         HTTPStatus.OK: serializers.SearchSerializer,
         HTTPStatus.FORBIDDEN: swg.OpenApiResponse(
