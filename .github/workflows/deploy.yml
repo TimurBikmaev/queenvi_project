@@ -69,12 +69,12 @@ jobs:
       - name: Build backend image
         env:
           DOCKERHUB_USERNAME: ${{ secrets.DOCKERHUB_USERNAME }}
-        run: docker build -t "$DOCKERHUB_USERNAME/queenvi-backend:latest" ./queenvi_project
+        run: docker build -t "$DOCKERHUB_USERNAME/queenvi_backend:latest" ./queenvi_project
 
       - name: Push backend image
         env:
           DOCKERHUB_USERNAME: ${{ secrets.DOCKERHUB_USERNAME }}
-        run: docker push "$DOCKERHUB_USERNAME/queenvi-backend:latest"
+        run: docker push "$DOCKERHUB_USERNAME/queenvi_backend:latest"
       
       - name: Build nginx image
         env:
