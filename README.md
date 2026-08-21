@@ -148,7 +148,7 @@ Deployment: **Docker**, **GitHub CI/CD**, **Nginx**, **Gunicorn**, **Linux-се�
 
 ```bash
 git clone https://github.com/TimurBikmaev/queenvi_project.git
-cd queenvi_project
+cd queenvi_project  # Перейдите в директорию проекта
 ```
 
 ### 2. Создание окружения и установка зависимостей
@@ -156,7 +156,7 @@ cd queenvi_project
 ```bash
 python -m venv venv
 . venv/Scripts/activate
-cd queenvi_project
+cd queenvi_project  # Перейдите в директорию Django-проекта
 pip install -r requirements.txt
 ```
 
@@ -165,6 +165,8 @@ pip install -r requirements.txt
 ```bash
 python manage.py shell -c "from django.core.management.utils import get_random_secret_key; print(get_random_secret_key())"
 ```
+
+Если Django не сможет прочитать ключ, то пересоздайте его.
 
 ### 4. Настройка переменных окружения
 
@@ -188,12 +190,13 @@ docker compose up -d
 python manage.py migrate
 ```
 
-
 ### 7. Создание администратора
 
 ```bash
 python manage.py createsuperuser
 ```
+
+Админка доступна по адресу: http://localhost:8000/admin/
 
 ### 8. Запуск сервера разработки
 
@@ -201,55 +204,95 @@ python manage.py createsuperuser
 python manage.py runserver
 ```
 
-### 9. Выполнение авторизованных запросов в Swagger на локале
+### 9. Выполнение авторизованных запросов в Swagger локально
 
-Чтобы выполнять авторизованные запросы локально, необходимо интегрировать Twitch API в приложении:
-1) Перейдите на https://dev.twitch.tv/;
-2) Авторизуйтесь и зайдите в консоль;
-3) Справа нажмите `Подать заявку`:
+#### ***Аутентификация через интеграцию Twitch API***
+
+**ВНИМАНИЕ**: Если у вашего Twitch-аккаунта включена двухфакторная аутентификация, используйте аутентификацию через Twitch. В противном случае используйте альтернативную аутентификацию (см. ниже):
+1. Перейдите на https://dev.twitch.tv/;
+2. Авторизуйтесь и перейдите в консоль (вверху справа);
+3. Справа нажмите `Подать заявку`, заполните данные и нажмите `Создать`:
 ```text
 Название: <ваше_название>
 OAuth Redirect URL: http://localhost:8000/api/v1/profile/twitch_callback/
 Категория: Website Integration
 Тип клиента: Конфиденциально
 ```
-4) Перейдите в `Функции` заявки;
-5) Нажмите `Новый секретный код`;
-6) Скопируйте значения `Идентификатор клиента`, `Новый секретный код` и вставьте их в `.env`:
+4. Перейдите в `Функции` заявки;
+5. Нажмите `Новый секретный код`;
+6. Скопируйте значения `Идентификатор клиента`, `Новый секретный код` и вставьте их в `.env`:
 ```env
 TWITCH_CLIENT_ID=<идентификатор клиента>
 TWITCH_CLIENT_SECRET=<новый секретный код>
-```
-    
-Теперь при запущенном сервере разработки пройдите Twitch OAuth по адресу http://localhost:8000/api/v1/twitch_login/. 
+``` 
 
-После авторизации в DevTools нужно достать значения `sessionid`, `csrftoken` и вставить их в форму авторизации Swagger. 
+#### ***Альтернативная аутентификация***
+1. Остановите работу сервера разработки (`Ctrl+C`). Cоздайте пользователя в терминале (поочередно вводите команды):
+```bash
+python manage.py shell
+```
+```bash
+from django.contrib.auth import get_user_model
+```
+```bash
+User = get_user_model()
+```
+```bash
+user = User.objects.create(
+    username='<введите username>',
+    password='<введите любой пароль>', 
+    role='<выберите роль из user/moder/streamer>', 
+    twitch_id='<любое уникальное значение>',
+    twitch_avatar='test'
+)
+```
+```bash
+exit
+```
+2. Перейдите в  `api` - `views.py`. Сделайте импорт `from django.contrib.auth import login` (добавьте строку в начало модуля);
+3. Найдите `UserViewSet` - action `twitch_login`. Переопределите action:
+```
+def twitch_login(self, request):
+    user = self.get_queryset().get(username='<username созданного вами пользователя>')
+    login(request, user)
+    serializer = self.get_serializer(user)
+    return Response(serializer.data, HTTPStatus.OK)
+```  
+
+#### ***После подготовки к аутентификации***
+
+при запущенном сервере разработки пройдите аутентификацию по адресу http://localhost:8000/api/v1/profile/twitch_login/. Перейдите в `DevTools (F12)`, выберите `Application` сверху и `Cookies` слева. Скопируйте значения `sessionid`, `csrftoken` и вставьте их в форму авторизации Swagger (http://localhost:8000/api/v1/docs/):
+```text
+cookieAuth: <sessionid>
+csrfAuth: <csrftoken>
+```
 
 Подробнее об авторизации: https://queenvi.ru/api/v1/docs/#/%D0%90%D1%83%D1%82%D0%B5%D0%BD%D1%82%D0%B8%D1%84%D0%B8%D0%BA%D0%B0%D1%86%D0%B8%D1%8F/profile_twitch_login_retrieve.
 
-### 10. Загрузка YouTube-видео в предложку на локале
+### 10. Загрузка YouTube-видео в предложку локально
 
 Чтобы загружать видео из YouTube локально, необходимо интегрировать YouTube API в приложении:
-1) Перейдите на https://console.cloud.google.com/;
-2) Создайте новый проект (кнопка вверху справа);
-3) Откройте `APIs & Services` и выберите слева вкладку `Library`;
-4) В поиске найдите `YouTube Data API v3` и нажмите `Enable`;
-5) Откройте `APIs & Services` и выберите слева вкладку `Credentials`;
-6) Нажмите вверху `Create credentials` и выберите `API key`:
+1. Перейдите на https://console.cloud.google.com/;
+2. Создайте новый проект (кнопка вверху справа) и выберите его;
+3. Откройте `APIs & Services` слева и выберите `Library`;
+4. В поиске найдите `YouTube Data API v3` и нажмите `Enable`;
+5. Откройте `APIs & Services` и выберите слева вкладку `Credentials`;
+6. Нажмите вверху `Create credentials` и выберите `API key`. Нажмите `Create`:
 ```text
 name: <ваше_название>
 Select API restrictions: YouTube Data API v3
 Application restrictions: None
 ```
-7) Нажмите `Show key`, скопируйте значение и вставьте в `.env`:
+7. Нажмите `Show key`, скопируйте значение и вставьте в `.env`:
 ```env
 GOOGLE_API_KEY=<ваш API key>
 ```
+Перезапустите локальный сервер разработки.
 
 
 ## Тестирование
 
-Для автоматизированного тестирования используется **Pytest**.
+Для автоматизированного тестирования используется **Pytest**. Если вы используете **альтернативную аутентификацию**, то **тесты не пройдут**.
 
 Запуск тестов:
 
@@ -261,9 +304,9 @@ pytest
 ## CI/CD
 
 Для автоматического обновления проекта на сервере используется GitHub Actions. Pipeline запускается при push в ветку main. В pipeline входит:
-1) Запуск автоматических тестов на **Pytest**;
-2) **Build** и **push** Docker-образов (backend + nginx) в Docker Hub;
-3) Запуск **docker-compose.prod.yml (db, backend, nginx)** на сервере.
+1. Запуск автоматических тестов на **Pytest**;
+2. **Build** и **push** Docker-образов (backend + nginx) в Docker Hub;
+3. Запуск **docker-compose.prod.yml (db, backend, nginx)** на сервере.
 
 
 ## Перспективы
