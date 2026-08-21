@@ -163,8 +163,28 @@ REST_FRAMEWORK = {
 SPECTACULAR_SETTINGS = {
     'TITLE': 'QueenVi',
     'DESCRIPTION': (
-        'Площадка для обмена контентом '
-        'внутри фан-сообщества стримерши QueenVi.'
+        'Площадка для обмена контентом внутри фан-сообщества стримерши '
+        'QueenVi.  Повышает вовлечённость аудитории и ее взаимодействие '
+        'со стримером.\n\n'
+        'Проект представляет собой MVP бэкенда с API и доступен по '
+        '[ссылке](https://queenvi.ru/api/v1/).\n\n'
+
+        'Полезные материалы:\n'
+        '- [GitHub репозиторий]('
+        'https://github.com/TimurBikmaev/queenvi_project)\n'
+
+        '- [README.md]('
+        'https://github.com/TimurBikmaev/queenvi_project/'
+        'blob/main/README.md)\n'
+
+        '- [Источник документации Swagger]('
+        'https://github.com/TimurBikmaev/queenvi_project/'
+        'blob/main/docs/QueenVi.yaml)\n\n'
+
+        'Связь с разработчиком:\n'
+        '- [Telegram](https://t.me/w_NeVeR_w)\n'
+        '- Почта: bikma2004@gmail.com\n'
+        '- [Портфолио](https://github.com/TimurBikmaev)\n'
     ),
     'TAGS': [
         {

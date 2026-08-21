@@ -2,7 +2,20 @@ openapi: 3.0.3
 info:
   title: QueenVi
   version: 1.0.0
-  description: Площадка для обмена контентом внутри фан-сообщества стримерши QueenVi.
+  description: |
+    Площадка для обмена контентом внутри фан-сообщества стримерши QueenVi.  Повышает вовлечённость аудитории и ее взаимодействие со стримером.
+
+    Проект представляет собой MVP бэкенда с API и доступен по [ссылке](https://queenvi.ru/api/v1/).
+
+    Полезные материалы:
+    - [GitHub репозиторий](https://github.com/TimurBikmaev/queenvi_project)
+    - [README.md](https://github.com/TimurBikmaev/queenvi_project/blob/main/README.md)
+    - [Источник документации Swagger](https://github.com/TimurBikmaev/queenvi_project/blob/main/docs/QueenVi.yaml)
+
+    Связь с разработчиком:
+    - [Telegram](https://t.me/w_NeVeR_w)
+    - Почта: bikma2004@gmail.com
+    - [Портфолио](https://github.com/TimurBikmaev)
 paths:
   /api/v1/posts/:
     get:
@@ -34,7 +47,7 @@ paths:
           - 'false'
           - 'true'
         description: Фильтрация по статусу бана. По умолчанию false. Для отображения
-          забаненных постов установите true.Доступна только модератору и стримеру.
+          забаненных постов установите true. Доступна только модератору и стримеру.
       - in: query
         name: is_for_stream
         schema:
@@ -55,8 +68,8 @@ paths:
         schema:
           type: string
           enum:
-          - comments_count
-          - likes_count
+          - -comments_count
+          - -likes_count
         description: Сортировка публикаций
       tags:
       - Посты
@@ -101,8 +114,8 @@ paths:
           description: ''
         '400':
           description: 'Формат ''{ext}'' файла ''{filename}'' запрещен для загрузки:(
-            Допустимые форматы фото: [''.jpg'', ''.jpeg'', ''.jfif'', ''.png'']; видео:
-            [''.mp4'']; аудио: [''.mp3'']'
+            Допустимые форматы фото: [''.jpg'', ''.jpeg'', ''.png'']; видео: [''.mp4''];
+            аудио: [''.mp3'']'
         '403':
           description: Анонимам доступ запрещен. | Забаненным пользователям доступ
             запрещен.
@@ -332,8 +345,8 @@ paths:
           description: ''
         '400':
           description: 'Формат ''{ext}'' файла ''{filename}'' запрещен для загрузки:(
-            Допустимые форматы фото: [''.jpg'', ''.jpeg'', ''.jfif'', ''.png'']; видео:
-            [''.mp4'']; аудио: [''.mp3'']'
+            Допустимые форматы фото: [''.jpg'', ''.jpeg'', ''.png'']; видео: [''.mp4''];
+            аудио: [''.mp3'']'
         '403':
           description: Анонимам доступ запрещен. | Забаненным пользователям доступ
             запрещен. | Только автор может изменять объект.
@@ -701,6 +714,12 @@ paths:
       operationId: search_retrieve
       description: Поиск осуществляется по "username" пользователя и "name" поста.
       summary: Найти пользователя или пост
+      parameters:
+      - in: query
+        name: find
+        schema:
+          type: string
+        description: Поиск постов и пользователей
       tags:
       - Поиск
       security:
@@ -1134,11 +1153,6 @@ components:
           type: string
           minLength: 1
           maxLength: 50
-        youtube_url:
-          type: string
-          format: uri
-          writeOnly: true
-          minLength: 1
     Post:
       type: object
       description: Подробная информация о посте.
