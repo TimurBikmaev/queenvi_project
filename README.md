@@ -142,7 +142,7 @@ Deployment: **Docker**, **GitHub CI/CD**, **Nginx**, **Gunicorn**, **Linux-се�
 
 ## Развёртывание
 
-Для локального запуска потребуется: **Docker** и **Git**.
+Для локального запуска потребуется: **Python**, **Docker** и **Git**.
 
 ### 1. Клонирование репозитория
 
@@ -151,13 +151,22 @@ git clone https://github.com/TimurBikmaev/queenvi_project.git
 cd queenvi_project
 ```
 
-### 2. Генерация секретного ключа Django
+### 2. Создание окружения и установка зависимостей
+
+```bash
+python -m venv venv
+. venv/Scripts/activate
+cd queenvi_project
+pip install -r requirements.txt
+```
+
+### 3. Генерация секретного ключа Django
 
 ```bash
 python manage.py shell -c "from django.core.management.utils import get_random_secret_key; print(get_random_secret_key())"
 ```
 
-### 3. Настройка переменных окружения
+### 4. Настройка переменных окружения
 
 Переименуйте файл `.env.example` на `.env`. Откройте его и укажите значение переменной:
 
@@ -167,25 +176,32 @@ DJANGO_SECRET_KEY=<сгенерированный секретный ключ>
 
 Закройте файл и продолжайте работать в терминале.
 
-### 4. Запуск Docker Compose (запустит только PostgreSQL)
+### 5. Запуск Docker Compose (запустит только PostgreSQL)
 
 ```bash
 docker compose up -d
 ```
 
-### 5. Создание администратора
+### 6. Применение миграций
+
+```bash
+python manage.py migrate
+```
+
+
+### 7. Создание администратора
 
 ```bash
 python manage.py createsuperuser
 ```
 
-### 6. Запуск сервера разработки
+### 8. Запуск сервера разработки
 
 ```bash
 python manage.py runserver
 ```
 
-### 7. Выполнение авторизованных запросов в Swagger на локале
+### 9. Выполнение авторизованных запросов в Swagger на локале
 
 Чтобы выполнять авторизованные запросы локально, необходимо интегрировать Twitch API в приложении:
 1) Перейдите на https://dev.twitch.tv/;
@@ -211,7 +227,7 @@ TWITCH_CLIENT_SECRET=<новый секретный код>
 
 Подробнее об авторизации: https://queenvi.ru/api/v1/docs/#/%D0%90%D1%83%D1%82%D0%B5%D0%BD%D1%82%D0%B8%D1%84%D0%B8%D0%BA%D0%B0%D1%86%D0%B8%D1%8F/profile_twitch_login_retrieve.
 
-### 8. Загрузка YouTube-видео в предложку на локале
+### 10. Загрузка YouTube-видео в предложку на локале
 
 Чтобы загружать видео из YouTube локально, необходимо интегрировать YouTube API в приложении:
 1) Перейдите на https://console.cloud.google.com/;
