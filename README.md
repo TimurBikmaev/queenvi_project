@@ -7,9 +7,11 @@
 
 ## Стек технологий
 
-Backend: **Python**, **Django**, **Django REST Framework**, **PostgreSQL**, **Pytest**, **Requests**.
+Backend: **Python 3.12**, **Django 5.2**, **Django REST Framework 3.15**, **PostgreSQL**, **Pytest**, **Requests**.
 
 Deployment: **Docker**, **GitHub CI/CD**, **Nginx**, **Gunicorn**, **Linux-сервер**.
+
+Style-check: **ruff**.
 
 
 ## Возможности
