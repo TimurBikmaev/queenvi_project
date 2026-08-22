@@ -168,7 +168,11 @@ pip install -r requirements.txt
 python manage.py shell -c "from django.core.management.utils import get_random_secret_key; print(get_random_secret_key())"
 ```
 
-Если Django не сможет прочитать ключ, то пересоздайте его.
+Если Django не сможет прочитать ключ (в терминале возникнет ошибка):
+```bash
+time="2026-08-22T12:44:15+03:00" level=warning msg="The \"pbqq0\" variable is not set. Defaulting to a blank string."
+```
+То ключ нужно сгенерировать заново.
 
 ### 4. Настройка переменных окружения
 
