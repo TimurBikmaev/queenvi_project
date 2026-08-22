@@ -7,11 +7,11 @@
 
 ## Стек технологий
 
-Backend: **Python 3.12**, **Django 5.2**, **Django REST Framework 3.15**, **PostgreSQL**, **Pytest**, **Requests**.
+Backend: **Python 3.12**, **Django 5.2**, **Django REST Framework 3.15**, **PostgreSQL 17**, **Pytest**, **Requests**.
 
 Deployment: **Docker**, **GitHub CI/CD**, **Nginx**, **Gunicorn**, **Linux-сервер**.
 
-Style-check: **ruff**.
+Style-check: **Ruff**.
 
 
 ## Возможности
@@ -144,7 +144,7 @@ Style-check: **ruff**.
 
 ## Развёртывание
 
-Для локального запуска потребуется: **Python**, **Docker** и **Git**.
+Для локального запуска потребуются: **Python**, **Docker** и **Git**.
 
 ### 1. Клонирование репозитория
 
@@ -153,7 +153,7 @@ git clone https://github.com/TimurBikmaev/queenvi_project.git
 cd queenvi_project  # Перейдите в директорию проекта
 ```
 
-### 2. Создание окружения и установка зависимостей
+### 2. Создание виртуального окружения и установка зависимостей
 
 ```bash
 python -m venv venv
@@ -170,19 +170,17 @@ python manage.py shell -c "from django.core.management.utils import get_random_s
 
 Если Django не сможет прочитать ключ (в терминале возникнет ошибка):
 ```bash
-time="2026-08-22T12:44:15+03:00" level=warning msg="The \"pbqq0\" variable is not set. Defaulting to a blank string."
+time="2026-08-22T12:44:15+03:00" level=warning msg="The \"<...>\" variable is not set. Defaulting to a blank string."
 ```
-То ключ нужно сгенерировать заново.
+то ключ нужно сгенерировать заново.
 
 ### 4. Настройка переменных окружения
 
-Переименуйте файл `.env.example` на `.env`. Откройте его и укажите значение переменной:
+Переименуйте файл `.env.example` в `.env`. Откройте его и укажите значение переменной:
 
 ```env
 DJANGO_SECRET_KEY=<сгенерированный секретный ключ>
 ```
-
-Закройте файл и продолжайте работать в терминале.
 
 ### 5. Запуск Docker Compose (запустит только PostgreSQL)
 
